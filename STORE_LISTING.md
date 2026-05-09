@@ -108,14 +108,22 @@ https://chrome.google.com/webstore/devconsole
 - データカテゴリは審査画面の選択肢に合わせ、迷う場合は **Website content** / **User activity** を検討（利用状況メトリクスをページから読み取るため）  
 - **パスワード・認証情報・支払い・位置・個人の通信内容は取得しない** → 各項目で No と答えられるようにする  
 
+## 申請用 ZIP（すぐ使えるもの）
+
+`main` に **`releases/ai-usage-monitor-store-v0.2.0.zip`** を置いています。Developer Console の **New item** にそのままアップロードしてかまいません。
+
+- ブラウザで取る場合: [releases/ai-usage-monitor-store-v0.2.0.zip（raw ダウンロード）](https://github.com/sinoda1114/AI-Usage-Monitor/raw/main/releases/ai-usage-monitor-store-v0.2.0.zip)
+
+`manifest.json` の `version` を上げたあとは、下の PowerShell で作り直し、同じフォルダに上書きコミットするか、ファイル名の版番号を合わせてください。
+
 ## 申請用 ZIP の作り方（Windows PowerShell）
 
-リポジトリのルートで実行。ZIP を開いた**一番上の階層に `manifest.json` がある**状態にしてください（余計な親フォルダだけ入っている形は避ける）。
+リポジトリのルートで実行。ZIP を開いた**一番上の階層に `manifest.json` がある**状態にしてください（余計な親フォルダだけ入っている形は避ける）。出力先は `releases/ai-usage-monitor-store-v$version.zip` にすると GitHub 上の配布と揃えやすいです。
 
 ```powershell
 $version = "0.2.0"
-$zip = "ai-usage-monitor-store-v$version.zip"
-
+$zip = "releases/ai-usage-monitor-store-v$version.zip"
+New-Item -ItemType Directory -Force -Path releases | Out-Null
 Remove-Item $zip -ErrorAction SilentlyContinue
 
 Compress-Archive `
