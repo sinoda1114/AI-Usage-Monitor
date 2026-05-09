@@ -53,7 +53,7 @@ AI Usage Monitor は、Cursor・Codex・Claude の使用量ページに表示さ
 
 権限: `alarms`, `storage`, `tabs`
 
-**tabs** — 各サービスの使用量ページを開く・再読み込みして情報を取得するため。対象 URL は manifest の content_scripts で限定。
+**tabs** — Cursor・Codex・Claude の使用量ページを開く、または再読み込みして情報を取得するために使用します。実装上、対象は manifest.json に記載した各サービスの使用量ページに限定しています。
 
 **storage** — メトリクス・最終更新・表示設定・更新停止状態をブラウザ内に保存するため。外部へ送信しない。
 
@@ -70,8 +70,8 @@ AI Usage Monitor は、Cursor・Codex・Claude の使用量ページに表示さ
 ## Privacy practices（方針）
 
 - 外部送信・第三者提供・広告・分析に使わない、と答えられる内容（`PRIVACY.md` と一致）
-- データカテゴリはフォームの選択肢に合わせる。迷う場合は **Website content** / **User activity** を検討
-- パスワード・認証トークン・支払い情報などは取得しない → 該当項目は No
+- データカテゴリは、対象サービスの使用量ページ上の表示内容を読み取るため、保守的に **Website content** / **User activity** を選択する方針。ただし、パスワード・認証トークン・支払い情報・位置情報・個人間メッセージは取得しない。
+- 上記の「取得しない」項目は、フォームで該当する箇所は **No** と答えられるようにする
 
 ## 申請用 ZIP（ローカルで作成）
 
@@ -98,5 +98,8 @@ Get-Item $zip
 □ chrome://extensions で展開フォルダを読み込み動作確認
 □ version が申請内容と一致
 □ Privacy policy URL を入力済み
-□ スクリーンショット用意
+□ icons/icon-128.png が存在する
+□ ZIP に .git / node_modules / .env / 不要な開発ファイルが入っていない
+□ ストア用スクリーンショットを 1 枚以上用意
+□ 説明文と PRIVACY.md の内容に矛盾がない
 ```
