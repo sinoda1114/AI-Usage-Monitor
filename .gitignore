@@ -1,0 +1,19 @@
+.DS_Store
+Thumbs.db
+
+# Local/editor artifacts
+.idea/
+.vscode/
+*.log
+
+# Build/release outputs
+dist/
+*.zip
+
+# Secrets and local config
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12

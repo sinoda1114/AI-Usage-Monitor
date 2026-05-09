@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AI Usage Monitor Settings</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #11120f;
+        color: #f3f0e8;
+      }
+
+      body {
+        margin: 0;
+        padding: 28px;
+      }
+
+      main {
+        max-width: 680px;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 24px;
+      }
+
+      p {
+        color: #b8b09f;
+        line-height: 1.6;
+      }
+
+      label {
+        display: block;
+        margin-top: 18px;
+        font-weight: 700;
+      }
+
+      input,
+      textarea {
+        box-sizing: border-box;
+        width: 100%;
+        margin-top: 8px;
+        border: 1px solid #3c3c31;
+        border-radius: 6px;
+        background: #1b1c16;
+        color: #fffaf0;
+        padding: 11px 12px;
+        font: inherit;
+      }
+
+      textarea {
+        min-height: 74px;
+        resize: vertical;
+      }
+
+      button {
+        margin-top: 22px;
+        border: 0;
+        border-radius: 6px;
+        background: #e6c06f;
+        color: #17140d;
+        font-weight: 800;
+        padding: 10px 14px;
+        cursor: pointer;
+      }
+
+      .note {
+        margin-top: 18px;
+        border: 1px solid #3a3327;
+        border-radius: 6px;
+        background: #201d17;
+        padding: 12px;
+        color: #c8b99c;
+        font-size: 13px;
+      }
+
+      #status {
+        margin-left: 12px;
+        color: #9ed6a5;
+      }
+
+      .provider-settings {
+        margin-top: 18px;
+        border: 1px solid #3a3327;
+        border-radius: 8px;
+        padding: 12px;
+        background: #181610;
+      }
+
+      .provider-settings h2 {
+        margin: 0 0 8px;
+        font-size: 15px;
+      }
+
+      .provider-row {
+        display: grid;
+        grid-template-columns: 120px 1fr 70px;
+        gap: 10px;
+        align-items: center;
+        margin-top: 8px;
+      }
+
+      .provider-row input[type="number"] {
+        margin-top: 0;
+      }
+
+      .provider-row label {
+        margin: 0;
+        font-weight: 500;
+      }
+
+      #orderValidationWarning {
+        margin-top: 10px;
+        padding: 10px 12px;
+        border-radius: 6px;
+        border: 1px solid #6b3a3a;
+        background: #2a1818;
+        color: #f0b4b4;
+        font-size: 13px;
+        display: none;
+      }
+
+      #orderValidationWarning.is-visible {
+        display: block;
+      }
+
+      input.input-error {
+        border-color: #a04545 !important;
+        outline-color: #a04545;
+      }
+
+      button:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>AI Usage Monitor</h1>
+      <p>Vercelにデプロイした場合は、Dashboard URLと送信用トークンをここに保存します。</p>
+
+      <label for="dashboardBaseUrl">Dashboard URL（複数可）</label>
+      <textarea id="dashboardBaseUrl" placeholder="http://127.0.0.1:43177&#10;https://your-project.vercel.app"></textarea>
+
+      <label for="ingestToken">Collector Token</label>
+      <input id="ingestToken" type="password" autocomplete="off" placeholder="COLLECTOR_INGEST_TOKEN" />
+
+      <section class="provider-settings">
+        <h2>ポップアップ表示設定</h2>
+        <div class="provider-row">
+          <strong>Cursor</strong>
+          <label><input id="showCursor" type="checkbox" checked /> 表示する</label>
+          <input id="orderCursor" type="number" min="1" step="1" value="1" />
+        </div>
+        <div class="provider-row">
+          <strong>Codex</strong>
+          <label><input id="showCodex" type="checkbox" checked /> 表示する</label>
+          <input id="orderCodex" type="number" min="1" step="1" value="2" />
+        </div>
+        <div class="provider-row">
+          <strong>Claude</strong>
+          <label><input id="showClaude" type="checkbox" checked /> 表示する</label>
+          <input id="orderClaude" type="number" min="1" step="1" value="3" />
+        </div>
+        <div id="orderValidationWarning" role="alert"></div>
+      </section>
+
+      <button id="save" type="button">保存</button>
+      <span id="status" role="status"></span>
+
+      <div class="note">
+        Dashboard URL は改行またはカンマ区切りで複数設定できます（例: ローカル + Vercel）。
+        空の場合は <code>http://127.0.0.1:43177</code> を使います。
+        トークンはVercel側の環境変数 <code>COLLECTOR_INGEST_TOKEN</code> と同じ値にしてください。
+      </div>
+    </main>
+    <script src="options.js"></script>
+  </body>
+</html>
