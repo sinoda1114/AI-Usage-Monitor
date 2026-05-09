@@ -6,7 +6,6 @@ const USAGE_URLS = [
 
 const AUTO_REFRESH_ALARM = "ai-usage-auto-refresh";
 const AUTO_REFRESH_MINUTES = 1;
-const OPENED_TAB_KEY = "aiUsageOpenedTabs";
 const STORE_KEY = "aiUsageStore";
 const PAUSED_KEY = "aiUsagePaused";
 const LEGACY_STORAGE_KEYS = ["dashboardBaseUrl", "dashboardBaseUrls", "ingestToken", "aiUsageLastCommandId"];
@@ -88,9 +87,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     void saveLocalSnapshot(message.snapshot).catch(() => {});
     return;
   }
-
-  if (message?.type !== "AI_USAGE_COLLECTED" || !sender.tab?.id) return;
-  void closeIfCollectorOpened(sender.tab.id);
 });
 
 async function getLocalUsageStore() {
@@ -155,32 +151,9 @@ async function openOrFocusCollectorTab(url) {
       tab = await chrome.tabs.create({ url, active: false, windowId: normalWindows[0].id });
     }
   }
-  if (tab.id) await rememberOpenedTab(tab.id);
-
-  setTimeout(() => {
-    if (tab.id) void closeIfCollectorOpened(tab.id);
-  }, 30000);
 }
 
 function originPattern(url) {
   const parsed = new URL(url);
   return `${parsed.origin}${parsed.pathname.replace(/\/[^/]*$/, "")}`;
-}
-
-async function rememberOpenedTab(tabId) {
-  const stored = await chrome.storage.session.get(OPENED_TAB_KEY);
-  const ids = new Set(stored[OPENED_TAB_KEY] ?? []);
-  ids.add(tabId);
-  await chrome.storage.session.set({ [OPENED_TAB_KEY]: [...ids] });
-}
-
-async function closeIfCollectorOpened(tabId) {
-  const stored = await chrome.storage.session.get(OPENED_TAB_KEY);
-  const ids = new Set(stored[OPENED_TAB_KEY] ?? []);
-  if (!ids.has(tabId)) return;
-
-  ids.delete(tabId);
-  await chrome.storage.session.set({ [OPENED_TAB_KEY]: [...ids] });
-
-  await chrome.tabs.remove(tabId).catch(() => {});
 }

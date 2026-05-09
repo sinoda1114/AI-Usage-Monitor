@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "AI Usage Monitor",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Read Cursor, Codex, and Claude usage pages and show metrics in the extension popup.",
   "icons": {
     "16": "icons/icon-16.png",
