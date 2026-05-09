@@ -7,35 +7,13 @@ const USAGE_URLS = [
 const AUTO_REFRESH_ALARM = "ai-usage-auto-refresh";
 const AUTO_REFRESH_MINUTES = 1;
 const OPENED_TAB_KEY = "aiUsageOpenedTabs";
-const LAST_COMMAND_KEY = "aiUsageLastCommandId";
 const STORE_KEY = "aiUsageStore";
 const PAUSED_KEY = "aiUsagePaused";
-const DEFAULT_DASHBOARD_BASE_URL = "http://127.0.0.1:43177";
+const LEGACY_STORAGE_KEYS = ["dashboardBaseUrl", "dashboardBaseUrls", "ingestToken", "aiUsageLastCommandId"];
 let latestStore = { updatedAt: null, providers: {} };
 
-async function getCollectorConfig() {
-  const stored = await chrome.storage.local.get(["dashboardBaseUrl", "dashboardBaseUrls", "ingestToken"]);
-  const dashboardBaseUrls = normalizeDashboardUrls(stored.dashboardBaseUrls, stored.dashboardBaseUrl);
-  const ingestToken = String(stored.ingestToken || "");
-  return { dashboardBaseUrl: dashboardBaseUrls[0], dashboardBaseUrls, ingestToken };
-}
-
-function normalizeDashboardUrls(maybeList, maybeSingle) {
-  const fromList = Array.isArray(maybeList)
-    ? maybeList.map((value) => String(value).trim().replace(/\/$/, "")).filter(Boolean)
-    : [];
-  if (fromList.length > 0) return Array.from(new Set(fromList));
-  const fallback = String(maybeSingle || DEFAULT_DASHBOARD_BASE_URL).trim().replace(/\/$/, "");
-  return [fallback];
-}
-
-function authHeaders(config) {
-  const headers = { "content-type": "application/json" };
-  if (config.ingestToken) headers.authorization = `Bearer ${config.ingestToken}`;
-  return headers;
-}
-
 chrome.runtime.onInstalled.addListener(() => {
+  void chrome.storage.local.remove(LEGACY_STORAGE_KEYS);
   chrome.alarms.create(AUTO_REFRESH_ALARM, {
     delayInMinutes: 0.05,
     periodInMinutes: AUTO_REFRESH_MINUTES,
@@ -60,7 +38,6 @@ chrome.runtime.onStartup.addListener(() => {
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === AUTO_REFRESH_ALARM) {
     void refreshAllUsagePages();
-    void checkCommandAndRefresh();
   }
 });
 
@@ -108,11 +85,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message?.type === "AI_USAGE_SNAPSHOT") {
     sendResponse({ ok: true, accepted: true });
-    void saveLocalSnapshot(message.snapshot)
-      .then((store) => {
-        broadcastStore(store);
-      })
-      .catch(() => {});
+    void saveLocalSnapshot(message.snapshot).catch(() => {});
     return;
   }
 
@@ -140,67 +113,12 @@ async function saveLocalSnapshot(snapshot) {
   return next;
 }
 
-async function broadcastStore(store) {
-  const tabs = await chrome.tabs.query({});
-  for (const tab of tabs) {
-    if (!tab.id) continue;
-    if (!isDashboardUrl(tab.url ?? "")) continue;
-    chrome.tabs.sendMessage(tab.id, { type: "AI_USAGE_STORE_SYNC", store }).catch(() => {});
-  }
-}
-
-function isDashboardUrl(url) {
-  return /^https:\/\/[^/]+\.vercel\.app\//.test(url) || /^https?:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?\//.test(url);
-}
-
 async function refreshAllUsagePages() {
-  if (await isPaused()) {
-    await reportStatus("paused", "更新停止中のため巡回をスキップしました。");
-    return false;
-  }
-  await reportStatus("started", "使用量ページの巡回を開始しました。");
+  if (await isPaused()) return false;
   for (const url of USAGE_URLS) {
     await openOrFocusCollectorTab(url);
   }
-  await reportStatus("completed", "使用量ページを開きました。読み取り後に自動で反映されます。");
   return true;
-}
-
-async function checkCommandAndRefresh() {
-  try {
-    if (await isPaused()) return;
-    const config = await getCollectorConfig();
-    const response = await fetch(`${config.dashboardBaseUrl}/api/collector/command`, {
-      cache: "no-store",
-      headers: authHeaders(config),
-    });
-    const payload = await response.json();
-    const commandId = payload.command?.id;
-    if (!commandId) return;
-
-    const stored = await chrome.storage.local.get(LAST_COMMAND_KEY);
-    if (stored[LAST_COMMAND_KEY] === commandId) return;
-
-    await chrome.storage.local.set({ [LAST_COMMAND_KEY]: commandId });
-    await reportStatus("started", "ダッシュボードからの巡回依頼を受け取りました。", commandId);
-    await refreshAllUsagePages();
-  } catch (error) {
-    await reportStatus("failed", `巡回依頼の確認に失敗しました: ${String(error)}`);
-  }
-}
-
-async function reportStatus(state, message, commandId) {
-  const config = await getCollectorConfig();
-  await fetch(`${config.dashboardBaseUrl}/api/collector/command`, {
-    method: "POST",
-    headers: authHeaders(config),
-    body: JSON.stringify({
-      type: "status",
-      state,
-      message,
-      commandId,
-    }),
-  }).catch(() => {});
 }
 
 async function isPaused() {

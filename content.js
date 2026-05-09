@@ -1,7 +1,5 @@
-const DEFAULT_DASHBOARD_BASE_URL = "http://127.0.0.1:43177";
 let collectorAlive = true;
 let observer = null;
-let warnedUnauthorized = false;
 
 window.addEventListener("unhandledrejection", (event) => {
   const reason = String(event.reason?.message || event.reason || "");
@@ -13,22 +11,6 @@ window.addEventListener("unhandledrejection", (event) => {
   event.preventDefault();
   stopCollector("unhandled rejection: context invalidated");
 });
-
-async function getCollectorConfig() {
-  const stored = await chrome.storage.local.get(["dashboardBaseUrl", "dashboardBaseUrls", "ingestToken"]);
-  const dashboardBaseUrls = normalizeDashboardUrls(stored.dashboardBaseUrls, stored.dashboardBaseUrl);
-  const ingestToken = String(stored.ingestToken || "");
-  return { dashboardBaseUrls, ingestToken };
-}
-
-function normalizeDashboardUrls(maybeList, maybeSingle) {
-  const fromList = Array.isArray(maybeList)
-    ? maybeList.map((value) => String(value).trim().replace(/\/$/, "")).filter(Boolean)
-    : [];
-  if (fromList.length > 0) return Array.from(new Set(fromList));
-  const fallback = String(maybeSingle || DEFAULT_DASHBOARD_BASE_URL).trim().replace(/\/$/, "");
-  return [fallback];
-}
 
 function isContextInvalidatedError(error) {
   return String(error?.message || error || "").includes("Extension context invalidated");
@@ -254,16 +236,6 @@ async function sendSnapshot() {
   const provider = providerFromLocation();
   if (!provider) return;
 
-  let config;
-  try {
-    config = await getCollectorConfig();
-  } catch (error) {
-    if (isContextInvalidatedError(error)) {
-      stopCollector("getCollectorConfig failed: context invalidated");
-      return;
-    }
-    throw error;
-  }
   const metrics = metricsFromBars(provider);
   const snapshot = {
     provider,
@@ -291,33 +263,7 @@ async function sendSnapshot() {
       }
     });
 
-  const headers = { "content-type": "application/json" };
-  if (config.ingestToken) headers.authorization = `Bearer ${config.ingestToken}`;
-
-  for (const dashboardBaseUrl of config.dashboardBaseUrls) {
-    try {
-      const response = await fetch(`${dashboardBaseUrl}/api/ingest`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(snapshot),
-      });
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          if (!warnedUnauthorized) {
-            warnedUnauthorized = true;
-            console.warn("[AI Usage Collector] ingest failed 401 unauthorized. Check Collector Token setting.");
-          }
-        } else {
-          console.warn("[AI Usage Collector] ingest failed", response.status, await response.text());
-        }
-      }
-    } catch (error) {
-      console.warn("[AI Usage Collector] ingest skipped", error);
-    }
-  }
-
-  showBadge(metrics.length > 0, `Usage collector: ${metrics.length} metric(s) saved`);
+  showBadge(metrics.length > 0, `AI Usage Monitor: ${metrics.length} 件のメトリクスを保存`);
   chrome.runtime
     ?.sendMessage?.({
       type: "AI_USAGE_COLLECTED",

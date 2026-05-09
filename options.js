@@ -1,7 +1,3 @@
-const DEFAULT_DASHBOARD_BASE_URL = "http://127.0.0.1:43177";
-
-const dashboardBaseUrlInput = document.getElementById("dashboardBaseUrl");
-const ingestTokenInput = document.getElementById("ingestToken");
 const statusEl = document.getElementById("status");
 const orderValidationWarningEl = document.getElementById("orderValidationWarning");
 const saveButton = document.getElementById("save");
@@ -27,39 +23,12 @@ const providerSettingEls = {
   },
 };
 
+const LEGACY_STORAGE_KEYS = ["dashboardBaseUrl", "dashboardBaseUrls", "ingestToken", "aiUsageLastCommandId"];
+
 async function load() {
-  const stored = await chrome.storage.local.get([
-    "dashboardBaseUrl",
-    "dashboardBaseUrls",
-    "ingestToken",
-    "popupProviderPrefs",
-  ]);
-  const urls = normalizeDashboardUrls(stored.dashboardBaseUrls, stored.dashboardBaseUrl);
-  dashboardBaseUrlInput.value = urls.join("\n");
-  ingestTokenInput.value = stored.ingestToken || "";
+  const stored = await chrome.storage.local.get(["popupProviderPrefs"]);
   applyProviderPrefs(stored.popupProviderPrefs);
   updateOrderValidationUI();
-}
-
-function parseDashboardUrls(rawValue) {
-  return Array.from(
-    new Set(
-      String(rawValue || "")
-        .split(/[\n,]/)
-        .map((value) => value.trim().replace(/\/$/, ""))
-        .filter(Boolean)
-    )
-  );
-}
-
-function normalizeDashboardUrls(maybeList, maybeSingle) {
-  const fromList = Array.isArray(maybeList)
-    ? maybeList.map((value) => String(value).trim().replace(/\/$/, "")).filter(Boolean)
-    : [];
-  if (fromList.length > 0) return Array.from(new Set(fromList));
-
-  const fallback = String(maybeSingle || DEFAULT_DASHBOARD_BASE_URL).trim().replace(/\/$/, "");
-  return [fallback];
 }
 
 function applyProviderPrefs(prefs) {
@@ -160,17 +129,10 @@ async function save() {
     return;
   }
 
-  const parsedUrls = parseDashboardUrls(dashboardBaseUrlInput.value);
-  const dashboardBaseUrls = parsedUrls.length > 0 ? parsedUrls : [DEFAULT_DASHBOARD_BASE_URL];
-  const dashboardBaseUrl = dashboardBaseUrls[0];
-  const ingestToken = ingestTokenInput.value.trim();
-
   await chrome.storage.local.set({
-    dashboardBaseUrl,
-    dashboardBaseUrls,
-    ingestToken,
     popupProviderPrefs: readProviderPrefs(),
   });
+  await chrome.storage.local.remove(LEGACY_STORAGE_KEYS);
 
   statusEl.textContent = "保存しました";
   window.setTimeout(() => {

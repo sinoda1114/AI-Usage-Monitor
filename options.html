@@ -66,16 +66,6 @@
         cursor: pointer;
       }
 
-      .note {
-        margin-top: 18px;
-        border: 1px solid #3a3327;
-        border-radius: 6px;
-        background: #201d17;
-        padding: 12px;
-        color: #c8b99c;
-        font-size: 13px;
-      }
-
       #status {
         margin-left: 12px;
         color: #9ed6a5;
@@ -140,13 +130,7 @@
   <body>
     <main>
       <h1>AI Usage Monitor</h1>
-      <p>Vercelにデプロイした場合は、Dashboard URLと送信用トークンをここに保存します。</p>
-
-      <label for="dashboardBaseUrl">Dashboard URL（複数可）</label>
-      <textarea id="dashboardBaseUrl" placeholder="http://127.0.0.1:43177&#10;https://your-project.vercel.app"></textarea>
-
-      <label for="ingestToken">Collector Token</label>
-      <input id="ingestToken" type="password" autocomplete="off" placeholder="COLLECTOR_INGEST_TOKEN" />
+      <p>ポップアップに表示するプロバイダーと並び順を設定します。データは拡張内にだけ保存され、外部サーバーへ送りません。</p>
 
       <section class="provider-settings">
         <h2>ポップアップ表示設定</h2>
@@ -170,12 +154,6 @@
 
       <button id="save" type="button">保存</button>
       <span id="status" role="status"></span>
-
-      <div class="note">
-        Dashboard URL は改行またはカンマ区切りで複数設定できます（例: ローカル + Vercel）。
-        空の場合は <code>http://127.0.0.1:43177</code> を使います。
-        トークンはVercel側の環境変数 <code>COLLECTOR_INGEST_TOKEN</code> と同じ値にしてください。
-      </div>
     </main>
     <script src="options.js"></script>
   </body>

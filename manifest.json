@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "AI Usage Monitor",
-  "version": "0.1.0",
-  "description": "Collect visible subscription usage from Cursor, Codex, and Claude pages into the local dashboard.",
+  "version": "0.2.0",
+  "description": "Read Cursor, Codex, and Claude usage pages and show metrics in the extension popup.",
   "icons": {
     "16": "icons/icon-16.png",
     "32": "icons/icon-32.png",
@@ -21,11 +21,6 @@
   },
   "options_page": "options.html",
   "permissions": ["alarms", "storage", "tabs"],
-  "host_permissions": [
-    "http://127.0.0.1/*",
-    "http://localhost/*",
-    "https://*.vercel.app/*"
-  ],
   "background": {
     "service_worker": "background.js"
   },
@@ -38,15 +33,6 @@
         "https://claude.ai/settings/usage*"
       ],
       "js": ["content.js"],
-      "run_at": "document_idle"
-    },
-    {
-      "matches": [
-        "http://127.0.0.1/*",
-        "http://localhost/*",
-        "https://*.vercel.app/*"
-      ],
-      "js": ["dashboard-bridge.js"],
       "run_at": "document_idle"
     }
   ]

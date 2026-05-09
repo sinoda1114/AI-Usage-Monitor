@@ -25,11 +25,10 @@ jobs:
       - name: Build extension zip
         run: |
           mkdir -p dist
-          zip -r "dist/ai-usage-collector-v${{ steps.version.outputs.value }}.zip" \
+          zip -r "dist/ai-usage-monitor-v${{ steps.version.outputs.value }}.zip" \
             manifest.json \
             background.js \
             content.js \
-            dashboard-bridge.js \
             popup.html \
             popup.js \
             popup.css \
@@ -40,5 +39,5 @@ jobs:
       - name: Create GitHub release and upload asset
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/ai-usage-collector-v${{ steps.version.outputs.value }}.zip
+          files: dist/ai-usage-monitor-v${{ steps.version.outputs.value }}.zip
           generate_release_notes: true

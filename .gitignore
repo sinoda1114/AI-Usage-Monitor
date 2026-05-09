@@ -9,6 +9,7 @@ Thumbs.db
 # Build/release outputs
 dist/
 *.zip
+!releases/*.zip
 
 # Secrets and local config
 .env
