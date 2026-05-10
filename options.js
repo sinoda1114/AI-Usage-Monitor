@@ -1,13 +1,8 @@
 const statusEl = document.getElementById("status");
 const saveButton = document.getElementById("save");
 const providerOrderList = document.getElementById("providerOrderList");
-const autoRefreshSelect = document.getElementById("autoRefreshMinutes");
-
-const PROVIDER_LABELS = {
-  cursor: "Cursor",
-  codex: "Codex",
-  claude: "Claude",
-};
+const autoRefreshInput = document.getElementById("autoRefreshMinutesInput");
+const autoRefreshPreset = document.getElementById("autoRefreshPreset");
 
 const DEFAULT_PREFS = {
   cursor: { visible: true, order: 1 },
@@ -15,8 +10,10 @@ const DEFAULT_PREFS = {
   claude: { visible: true, order: 3 },
 };
 
-const AUTO_REFRESH_OPTIONS = [1, 2, 3, 5, 10, 15, 20, 30, 45, 60, 90, 120];
+const AUTO_REFRESH_PRESETS = [1, 2, 3, 5, 10, 15, 20, 30, 45, 60, 90, 120];
 const DEFAULT_AUTO_REFRESH_MINUTES = 1;
+const MIN_AUTO_REFRESH = 1;
+const MAX_AUTO_REFRESH = 120;
 
 const LEGACY_STORAGE_KEYS = ["dashboardBaseUrl", "dashboardBaseUrls", "ingestToken", "aiUsageLastCommandId"];
 
@@ -58,14 +55,31 @@ function applyProviderPrefs(prefs) {
   }
 }
 
-function fillAutoRefreshSelect() {
-  autoRefreshSelect.innerHTML = "";
-  for (const m of AUTO_REFRESH_OPTIONS) {
+function fillAutoRefreshPresetSelect() {
+  autoRefreshPreset.innerHTML = "";
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "プリセットから選ぶ…";
+  autoRefreshPreset.appendChild(placeholder);
+  for (const m of AUTO_REFRESH_PRESETS) {
     const opt = document.createElement("option");
     opt.value = String(m);
     opt.textContent = `${m} 分`;
-    autoRefreshSelect.appendChild(opt);
+    autoRefreshPreset.appendChild(opt);
   }
+}
+
+function clampAutoRefreshMinutes(raw) {
+  const n = Number.parseInt(String(raw).trim(), 10);
+  if (!Number.isFinite(n)) return DEFAULT_AUTO_REFRESH_MINUTES;
+  return Math.min(MAX_AUTO_REFRESH, Math.max(MIN_AUTO_REFRESH, n));
+}
+
+function syncPresetSelectToInput() {
+  const v = clampAutoRefreshMinutes(autoRefreshInput.value);
+  autoRefreshInput.value = String(v);
+  const match = AUTO_REFRESH_PRESETS.includes(v) ? String(v) : "";
+  autoRefreshPreset.value = match;
 }
 
 function getDragAfterElement(container, y) {
@@ -124,31 +138,46 @@ function setupDragAndDrop() {
   });
 }
 
+function setupAutoRefreshControls() {
+  autoRefreshPreset.addEventListener("change", () => {
+    const v = autoRefreshPreset.value;
+    if (v === "") return;
+    autoRefreshInput.value = v;
+    syncPresetSelectToInput();
+  });
+
+  autoRefreshInput.addEventListener("input", () => {
+    syncPresetSelectToInput();
+  });
+
+  autoRefreshInput.addEventListener("change", () => {
+    const v = clampAutoRefreshMinutes(autoRefreshInput.value);
+    autoRefreshInput.value = String(v);
+    syncPresetSelectToInput();
+  });
+}
+
 async function load() {
-  fillAutoRefreshSelect();
+  fillAutoRefreshPresetSelect();
   const stored = await chrome.storage.local.get(["popupProviderPrefs", "autoRefreshMinutes"]);
   applyProviderPrefs(stored.popupProviderPrefs);
 
-  let minutes = Number(stored.autoRefreshMinutes);
-  if (!Number.isFinite(minutes) || minutes < 1 || minutes > 120) minutes = DEFAULT_AUTO_REFRESH_MINUTES;
-  if (!AUTO_REFRESH_OPTIONS.includes(minutes)) {
-    minutes = AUTO_REFRESH_OPTIONS.reduce((prev, cur) =>
-      Math.abs(cur - minutes) < Math.abs(prev - minutes) ? cur : prev
-    );
-  }
-  autoRefreshSelect.value = String(minutes);
+  const minutes = clampAutoRefreshMinutes(stored.autoRefreshMinutes ?? DEFAULT_AUTO_REFRESH_MINUTES);
+  autoRefreshInput.value = String(minutes);
+  syncPresetSelectToInput();
 }
 
 async function save() {
-  const minutes = Number.parseInt(autoRefreshSelect.value, 10);
-  const safeMinutes =
-    Number.isFinite(minutes) && minutes >= 1 && minutes <= 120 ? minutes : DEFAULT_AUTO_REFRESH_MINUTES;
+  const safeMinutes = clampAutoRefreshMinutes(autoRefreshInput.value);
 
   await chrome.storage.local.set({
     popupProviderPrefs: readProviderPrefs(),
     autoRefreshMinutes: safeMinutes,
   });
   await chrome.storage.local.remove(LEGACY_STORAGE_KEYS);
+
+  autoRefreshInput.value = String(safeMinutes);
+  syncPresetSelectToInput();
 
   statusEl.textContent = "保存しました";
   window.setTimeout(() => {
@@ -158,4 +187,5 @@ async function save() {
 
 saveButton.addEventListener("click", save);
 setupDragAndDrop();
+setupAutoRefreshControls();
 void load();

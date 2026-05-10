@@ -37,10 +37,9 @@
         font-weight: 700;
       }
 
-      select {
+      input[type="number"] {
         box-sizing: border-box;
-        width: 100%;
-        max-width: 280px;
+        width: 96px;
         margin-top: 8px;
         border: 1px solid #3c3c31;
         border-radius: 6px;
@@ -48,6 +47,31 @@
         color: #fffaf0;
         padding: 11px 12px;
         font: inherit;
+      }
+
+      select {
+        box-sizing: border-box;
+        min-width: 160px;
+        margin-top: 8px;
+        border: 1px solid #3c3c31;
+        border-radius: 6px;
+        background: #1b1c16;
+        color: #fffaf0;
+        padding: 11px 12px;
+        font: inherit;
+      }
+
+      .interval-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px 14px;
+        margin-top: 8px;
+      }
+
+      .interval-row .interval-suffix {
+        color: #b8b09f;
+        font-size: 14px;
       }
 
       button {
@@ -93,14 +117,15 @@
 
       .provider-order-row {
         display: grid;
-        grid-template-columns: 36px 100px 1fr;
+        grid-template-columns: 36px minmax(0, 1fr) auto;
         gap: 10px;
         align-items: center;
         margin-top: 8px;
-        padding: 10px 10px;
+        padding: 10px 12px;
         border: 1px solid #2f2e28;
         border-radius: 8px;
         background: #14130f;
+        border-left-width: 4px;
         cursor: grab;
       }
 
@@ -113,6 +138,18 @@
         border-color: #e6c06f;
       }
 
+      .provider-order-row.provider-cursor {
+        border-left-color: #6ec1ff;
+      }
+
+      .provider-order-row.provider-codex {
+        border-left-color: #9f8cff;
+      }
+
+      .provider-order-row.provider-claude {
+        border-left-color: #ffb36c;
+      }
+
       .drag-handle {
         display: flex;
         align-items: center;
@@ -121,6 +158,37 @@
         letter-spacing: -2px;
         color: #8a8475;
         pointer-events: none;
+      }
+
+      .provider-order-row__main {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+      }
+
+      .provider-order-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 22px;
+        height: 22px;
+        flex-shrink: 0;
+        border-radius: 999px;
+        font-size: 11px;
+        line-height: 1;
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      .provider-order-icon--codex {
+        font-size: 9px;
+        letter-spacing: -0.5px;
+      }
+
+      .provider-order-row strong {
+        font-size: 15px;
+        font-weight: 700;
       }
 
       .provider-order-row label {
@@ -145,29 +213,53 @@
       <h1>AI Usage Monitor</h1>
       <p>ポップアップに表示するプロバイダーと並び順を設定します。データは拡張内にだけ保存され、外部サーバーへ送りません。</p>
 
-      <label for="autoRefreshMinutes">自動更新の間隔</label>
-      <select id="autoRefreshMinutes" aria-describedby="autoRefreshHint"></select>
+      <label for="autoRefreshMinutesInput">自動更新の間隔</label>
+      <div class="interval-row">
+        <input
+          type="number"
+          id="autoRefreshMinutesInput"
+          min="1"
+          max="120"
+          step="1"
+          value="1"
+          inputmode="numeric"
+          aria-describedby="autoRefreshHint"
+        />
+        <span class="interval-suffix">分</span>
+        <select id="autoRefreshPreset" aria-label="よく使う間隔から入力欄に反映">
+          <option value="">プリセットから選ぶ…</option>
+        </select>
+      </div>
       <p id="autoRefreshHint" class="hint" style="margin-top: 6px">
-        バックグラウンドで各サービスの使用量ページを再読み込みするまでの待ち時間です（1〜120分）。
+        1〜120 の整数を入力するか、プリセットを選ぶと入力欄に反映されます。
       </p>
 
       <section class="provider-settings">
         <h2>ポップアップ表示設定</h2>
         <p class="hint">行をドラッグして上からの表示順を変えられます。「表示する」でポップアップへの表示を切り替えます。</p>
         <div id="providerOrderList" class="provider-order-list">
-          <div class="provider-order-row" data-provider="cursor" draggable="true">
+          <div class="provider-order-row provider-cursor" data-provider="cursor" draggable="true">
             <span class="drag-handle" aria-hidden="true">⠿</span>
-            <strong>Cursor</strong>
+            <div class="provider-order-row__main">
+              <span class="provider-order-icon" aria-hidden="true">➤</span>
+              <strong>Cursor</strong>
+            </div>
             <label><input id="showCursor" type="checkbox" checked /> 表示する</label>
           </div>
-          <div class="provider-order-row" data-provider="codex" draggable="true">
+          <div class="provider-order-row provider-codex" data-provider="codex" draggable="true">
             <span class="drag-handle" aria-hidden="true">⠿</span>
-            <strong>Codex</strong>
+            <div class="provider-order-row__main">
+              <span class="provider-order-icon provider-order-icon--codex" aria-hidden="true">&lt;/&gt;</span>
+              <strong>Codex</strong>
+            </div>
             <label><input id="showCodex" type="checkbox" checked /> 表示する</label>
           </div>
-          <div class="provider-order-row" data-provider="claude" draggable="true">
+          <div class="provider-order-row provider-claude" data-provider="claude" draggable="true">
             <span class="drag-handle" aria-hidden="true">⠿</span>
-            <strong>Claude</strong>
+            <div class="provider-order-row__main">
+              <span class="provider-order-icon" aria-hidden="true">✶</span>
+              <strong>Claude</strong>
+            </div>
             <label><input id="showClaude" type="checkbox" checked /> 表示する</label>
           </div>
         </div>
