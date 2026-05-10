@@ -55,7 +55,7 @@ AI Usage Monitor は、Cursor・Codex・Claude の使用量ページに表示さ
 
 **tabs** — Cursor・Codex・Claude の使用量ページを開く、または再読み込みして情報を取得するために使用します。実装上、対象は manifest.json に記載した各サービスの使用量ページに限定しています。
 
-**storage** — メトリクス・最終更新・表示設定・更新停止状態をブラウザ内に保存するため。外部へ送信しない。
+**storage** — メトリクス・最終更新・表示設定・更新停止状態・自動更新間隔（分）をブラウザ内に保存するため。外部へ送信しない。
 
 **alarms** — 定期的に使用量を確認しポップアップ用データを更新するため。
 
@@ -75,14 +75,14 @@ AI Usage Monitor は、Cursor・Codex・Claude の使用量ページに表示さ
 
 ## 申請用 ZIP（ローカルで作成）
 
-**リポジトリの `releases/ai-usage-monitor-store-v0.2.1.zip` も同じ中身です。** そのままダウンロードして使う場合:  
-`https://github.com/sinoda1114/AI-Usage-Monitor/raw/main/releases/ai-usage-monitor-store-v0.2.1.zip`  
+**リポジトリの `releases/ai-usage-monitor-store-v0.2.2.zip` も同じ中身です。** そのままダウンロードして使う場合:  
+`https://github.com/sinoda1114/AI-Usage-Monitor/raw/main/releases/ai-usage-monitor-store-v0.2.2.zip`  
 `manifest.json` の `version` を上げたあとは、下のスクリプトで作り直し、このファイル名も合わせて更新してください。
 
 リポジトリの**ルート**で実行。ZIP を開いた**いちばん上の階層に `manifest.json` がある**こと（余計な親フォルダだけ丸ごと入れない）。
 
 ```powershell
-$version = "0.2.1"
+$version = "0.2.2"
 $zip = "ai-usage-monitor-store-v$version.zip"
 Remove-Item $zip -ErrorAction SilentlyContinue
 Compress-Archive `

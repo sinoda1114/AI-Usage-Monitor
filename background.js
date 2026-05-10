@@ -5,7 +5,9 @@ const USAGE_URLS = [
 ];
 
 const AUTO_REFRESH_ALARM = "ai-usage-auto-refresh";
-const AUTO_REFRESH_MINUTES = 1;
+const DEFAULT_AUTO_REFRESH_MINUTES = 1;
+const MIN_AUTO_REFRESH_MINUTES = 1;
+const MAX_AUTO_REFRESH_MINUTES = 120;
 const STORE_KEY = "aiUsageStore";
 const PAUSED_KEY = "aiUsagePaused";
 const LEGACY_STORAGE_KEYS = ["dashboardBaseUrl", "dashboardBaseUrls", "ingestToken", "aiUsageLastCommandId"];
@@ -13,10 +15,7 @@ let latestStore = { updatedAt: null, providers: {} };
 
 chrome.runtime.onInstalled.addListener(() => {
   void chrome.storage.local.remove(LEGACY_STORAGE_KEYS);
-  chrome.alarms.create(AUTO_REFRESH_ALARM, {
-    delayInMinutes: 0.05,
-    periodInMinutes: AUTO_REFRESH_MINUTES,
-  });
+  void initAutoRefreshAlarm();
   void refreshAllUsagePages();
 });
 
@@ -27,12 +26,37 @@ void getLocalUsageStore()
   .catch(() => {});
 
 chrome.runtime.onStartup.addListener(() => {
-  chrome.alarms.create(AUTO_REFRESH_ALARM, {
-    delayInMinutes: 0.05,
-    periodInMinutes: AUTO_REFRESH_MINUTES,
-  });
+  void initAutoRefreshAlarm();
   void refreshAllUsagePages();
 });
+
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName !== "local" || !changes.autoRefreshMinutes) return;
+  void initAutoRefreshAlarm();
+});
+
+async function getAutoRefreshMinutes() {
+  const stored = await chrome.storage.local.get("autoRefreshMinutes");
+  const n = Number(stored.autoRefreshMinutes);
+  if (!Number.isFinite(n) || n < MIN_AUTO_REFRESH_MINUTES || n > MAX_AUTO_REFRESH_MINUTES) {
+    return DEFAULT_AUTO_REFRESH_MINUTES;
+  }
+  return Math.round(n);
+}
+
+function scheduleAutoRefreshAlarm(periodMinutes) {
+  chrome.alarms.clear(AUTO_REFRESH_ALARM, () => {
+    chrome.alarms.create(AUTO_REFRESH_ALARM, {
+      delayInMinutes: 0.05,
+      periodInMinutes: periodMinutes,
+    });
+  });
+}
+
+async function initAutoRefreshAlarm() {
+  const minutes = await getAutoRefreshMinutes();
+  scheduleAutoRefreshAlarm(minutes);
+}
 
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === AUTO_REFRESH_ALARM) {

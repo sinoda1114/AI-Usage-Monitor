@@ -37,10 +37,10 @@
         font-weight: 700;
       }
 
-      input,
-      textarea {
+      select {
         box-sizing: border-box;
         width: 100%;
+        max-width: 280px;
         margin-top: 8px;
         border: 1px solid #3c3c31;
         border-radius: 6px;
@@ -48,11 +48,6 @@
         color: #fffaf0;
         padding: 11px 12px;
         font: inherit;
-      }
-
-      textarea {
-        min-height: 74px;
-        resize: vertical;
       }
 
       button {
@@ -80,45 +75,63 @@
       }
 
       .provider-settings h2 {
-        margin: 0 0 8px;
+        margin: 0 0 4px;
         font-size: 15px;
       }
 
-      .provider-row {
+      .provider-settings .hint {
+        margin: 0 0 10px;
+        font-size: 12px;
+        color: #9a9588;
+        font-weight: 400;
+      }
+
+      .provider-order-list {
+        margin-top: 8px;
+        user-select: none;
+      }
+
+      .provider-order-row {
         display: grid;
-        grid-template-columns: 120px 1fr 70px;
+        grid-template-columns: 36px 100px 1fr;
         gap: 10px;
         align-items: center;
         margin-top: 8px;
+        padding: 10px 10px;
+        border: 1px solid #2f2e28;
+        border-radius: 8px;
+        background: #14130f;
+        cursor: grab;
       }
 
-      .provider-row input[type="number"] {
-        margin-top: 0;
+      .provider-order-row:active {
+        cursor: grabbing;
       }
 
-      .provider-row label {
+      .provider-order-row.dragging {
+        opacity: 0.55;
+        border-color: #e6c06f;
+      }
+
+      .drag-handle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        letter-spacing: -2px;
+        color: #8a8475;
+        pointer-events: none;
+      }
+
+      .provider-order-row label {
         margin: 0;
         font-weight: 500;
+        cursor: pointer;
       }
 
-      #orderValidationWarning {
-        margin-top: 10px;
-        padding: 10px 12px;
-        border-radius: 6px;
-        border: 1px solid #6b3a3a;
-        background: #2a1818;
-        color: #f0b4b4;
-        font-size: 13px;
-        display: none;
-      }
-
-      #orderValidationWarning.is-visible {
-        display: block;
-      }
-
-      input.input-error {
-        border-color: #a04545 !important;
-        outline-color: #a04545;
+      .provider-order-row input[type="checkbox"] {
+        margin-right: 6px;
+        vertical-align: middle;
       }
 
       button:disabled {
@@ -132,24 +145,32 @@
       <h1>AI Usage Monitor</h1>
       <p>ポップアップに表示するプロバイダーと並び順を設定します。データは拡張内にだけ保存され、外部サーバーへ送りません。</p>
 
+      <label for="autoRefreshMinutes">自動更新の間隔</label>
+      <select id="autoRefreshMinutes" aria-describedby="autoRefreshHint"></select>
+      <p id="autoRefreshHint" class="hint" style="margin-top: 6px">
+        バックグラウンドで各サービスの使用量ページを再読み込みするまでの待ち時間です（1〜120分）。
+      </p>
+
       <section class="provider-settings">
         <h2>ポップアップ表示設定</h2>
-        <div class="provider-row">
-          <strong>Cursor</strong>
-          <label><input id="showCursor" type="checkbox" checked /> 表示する</label>
-          <input id="orderCursor" type="number" min="1" step="1" value="1" />
+        <p class="hint">行をドラッグして上からの表示順を変えられます。「表示する」でポップアップへの表示を切り替えます。</p>
+        <div id="providerOrderList" class="provider-order-list">
+          <div class="provider-order-row" data-provider="cursor" draggable="true">
+            <span class="drag-handle" aria-hidden="true">⠿</span>
+            <strong>Cursor</strong>
+            <label><input id="showCursor" type="checkbox" checked /> 表示する</label>
+          </div>
+          <div class="provider-order-row" data-provider="codex" draggable="true">
+            <span class="drag-handle" aria-hidden="true">⠿</span>
+            <strong>Codex</strong>
+            <label><input id="showCodex" type="checkbox" checked /> 表示する</label>
+          </div>
+          <div class="provider-order-row" data-provider="claude" draggable="true">
+            <span class="drag-handle" aria-hidden="true">⠿</span>
+            <strong>Claude</strong>
+            <label><input id="showClaude" type="checkbox" checked /> 表示する</label>
+          </div>
         </div>
-        <div class="provider-row">
-          <strong>Codex</strong>
-          <label><input id="showCodex" type="checkbox" checked /> 表示する</label>
-          <input id="orderCodex" type="number" min="1" step="1" value="2" />
-        </div>
-        <div class="provider-row">
-          <strong>Claude</strong>
-          <label><input id="showClaude" type="checkbox" checked /> 表示する</label>
-          <input id="orderClaude" type="number" min="1" step="1" value="3" />
-        </div>
-        <div id="orderValidationWarning" role="alert"></div>
       </section>
 
       <button id="save" type="button">保存</button>
