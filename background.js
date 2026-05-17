@@ -36,9 +36,34 @@ const COLLECTOR_MATCHES = [
   "https://app.devin.ai/*",
 ];
 let latestStore = { updatedAt: null, providers: {} };
+const COLLECTOR_VERSION_KEY = "collectorScriptVersion";
+
+function isCollectorTabUrl(url) {
+  if (!url) return false;
+  try {
+    const u = new URL(url);
+    if (u.hostname.includes("cursor.com") && /\/dashboard\/spending/i.test(u.pathname)) return true;
+    if (u.hostname.includes("chatgpt.com") && u.href.includes("/codex/")) return true;
+    if (u.hostname === "claude.ai" && u.pathname.includes("/settings/usage")) return true;
+    if (
+      (u.hostname === "app.devin.ai" || u.hostname.endsWith(".devin.ai")) &&
+      /\/org\/[^/]+\//.test(u.pathname)
+    ) {
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
 
 async function registerCollectorContentScript() {
+  const registered = await chrome.scripting.getRegisteredContentScripts().catch(() => []);
+  const registeredIds = registered.map((entry) => entry.id);
   await chrome.scripting.unregisterContentScripts({ ids: LEGACY_COLLECTOR_SCRIPT_IDS }).catch(() => {});
+  if (registeredIds.length > 0) {
+    await chrome.scripting.unregisterContentScripts({ ids: registeredIds }).catch(() => {});
+  }
   await chrome.scripting.registerContentScripts([
     {
       id: COLLECTOR_SCRIPT_ID,
@@ -49,11 +74,34 @@ async function registerCollectorContentScript() {
   ]);
 }
 
+async function reloadCollectorTabsIfVersionChanged() {
+  const manifestVersion = chrome.runtime.getManifest().version;
+  const stored = await chrome.storage.local.get(COLLECTOR_VERSION_KEY);
+  const prev = stored[COLLECTOR_VERSION_KEY];
+  if (prev === manifestVersion) return;
+
+  await chrome.storage.local.set({ [COLLECTOR_VERSION_KEY]: manifestVersion });
+  const tabs = await chrome.tabs.query({});
+  for (const tab of tabs) {
+    if (!tab.id || !isCollectorTabUrl(tab.url)) continue;
+    try {
+      await chrome.tabs.reload(tab.id);
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+async function onExtensionReady() {
+  await chrome.storage.local.remove(LEGACY_STORAGE_KEYS);
+  await registerCollectorContentScript();
+  await reloadCollectorTabsIfVersionChanged();
+  await initAutoRefreshAlarm();
+  await refreshAllUsagePages();
+}
+
 chrome.runtime.onInstalled.addListener(() => {
-  void chrome.storage.local.remove(LEGACY_STORAGE_KEYS);
-  void registerCollectorContentScript();
-  void initAutoRefreshAlarm();
-  void refreshAllUsagePages();
+  void onExtensionReady();
 });
 
 void getLocalUsageStore()
