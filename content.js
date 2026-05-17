@@ -1,6 +1,15 @@
 /** Collects usage metrics only; no on-page UI (does not load i18n.js). */
+const CONTENT_BUILD = "0.4.13";
+
 let collectorAlive = true;
 let observer = null;
+
+if (globalThis.__aiUsageContentBuild && globalThis.__aiUsageContentBuild !== CONTENT_BUILD) {
+  console.info(
+    "[AI Usage Monitor] Extension was updated. Reload this tab (F5) to clear the old collector."
+  );
+}
+globalThis.__aiUsageContentBuild = CONTENT_BUILD;
 
 window.addEventListener("unhandledrejection", (event) => {
   const reason = String(event.reason?.message || event.reason || "");
