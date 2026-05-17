@@ -1,3 +1,4 @@
+/** Collects usage metrics only; no on-page UI (does not load i18n.js). */
 let collectorAlive = true;
 let observer = null;
 
