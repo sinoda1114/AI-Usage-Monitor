@@ -3,11 +3,16 @@ const saveButton = document.getElementById("save");
 const providerOrderList = document.getElementById("providerOrderList");
 const autoRefreshInput = document.getElementById("autoRefreshMinutesInput");
 const autoRefreshPreset = document.getElementById("autoRefreshPreset");
+const uiLanguageSelect = document.getElementById("uiLanguage");
+const devinOrgSlugInput = document.getElementById("devinOrgSlug");
+
+const PROVIDER_IDS = ["cursor", "codex", "claude", "devin"];
 
 const DEFAULT_PREFS = {
   cursor: { visible: true, order: 1 },
   codex: { visible: true, order: 2 },
   claude: { visible: true, order: 3 },
+  devin: { visible: false, order: 4 },
 };
 
 const AUTO_REFRESH_PRESETS = [1, 2, 3, 5, 10, 15, 20, 30, 45, 60, 90, 120];
@@ -36,7 +41,7 @@ function readProviderPrefs() {
 }
 
 function applyProviderPrefs(prefs) {
-  const keys = Object.keys(DEFAULT_PREFS).sort((a, b) => {
+  const keys = [...PROVIDER_IDS].sort((a, b) => {
     const orderA = prefs?.[a]?.order ?? DEFAULT_PREFS[a].order;
     const orderB = prefs?.[b]?.order ?? DEFAULT_PREFS[b].order;
     return orderA - orderB;
@@ -56,17 +61,25 @@ function applyProviderPrefs(prefs) {
 }
 
 function fillAutoRefreshPresetSelect() {
+  const selected = autoRefreshPreset.value;
   autoRefreshPreset.innerHTML = "";
   const placeholder = document.createElement("option");
   placeholder.value = "";
-  placeholder.textContent = "プリセットから選ぶ…";
+  placeholder.textContent = t("options_presetPlaceholder");
   autoRefreshPreset.appendChild(placeholder);
   for (const m of AUTO_REFRESH_PRESETS) {
     const opt = document.createElement("option");
     opt.value = String(m);
-    opt.textContent = `${m} 分`;
+    opt.textContent = t("options_presetMinutes", String(m));
     autoRefreshPreset.appendChild(opt);
   }
+  autoRefreshPreset.value = selected;
+}
+
+function sanitizeDevinOrgSlug(raw) {
+  const s = String(raw ?? "").trim();
+  if (!s) return "";
+  return /^[a-zA-Z0-9_-]+$/.test(s) ? s : "";
 }
 
 function clampAutoRefreshMinutes(raw) {
@@ -157,10 +170,21 @@ function setupAutoRefreshControls() {
   });
 }
 
+function applyAppVersion() {
+  const el = document.getElementById("appVersion");
+  if (!el) return;
+  el.textContent = t("options_version", chrome.runtime.getManifest().version);
+}
+
 async function load() {
+  await initI18n();
+  applyI18n();
+  applyAppVersion();
   fillAutoRefreshPresetSelect();
-  const stored = await chrome.storage.local.get(["popupProviderPrefs", "autoRefreshMinutes"]);
+  const stored = await chrome.storage.local.get(["popupProviderPrefs", "autoRefreshMinutes", "uiLanguage", "devinOrgSlug"]);
+  uiLanguageSelect.value = stored.uiLanguage || "auto";
   applyProviderPrefs(stored.popupProviderPrefs);
+  devinOrgSlugInput.value = stored.devinOrgSlug ?? "";
 
   const minutes = clampAutoRefreshMinutes(stored.autoRefreshMinutes ?? DEFAULT_AUTO_REFRESH_MINUTES);
   autoRefreshInput.value = String(minutes);
@@ -169,17 +193,28 @@ async function load() {
 
 async function save() {
   const safeMinutes = clampAutoRefreshMinutes(autoRefreshInput.value);
+  const nextLanguage = uiLanguageSelect.value;
+  const languageChanged = nextLanguage !== getLanguageChoice();
 
   await chrome.storage.local.set({
     popupProviderPrefs: readProviderPrefs(),
     autoRefreshMinutes: safeMinutes,
+    uiLanguage: nextLanguage,
+    devinOrgSlug: sanitizeDevinOrgSlug(devinOrgSlugInput.value),
   });
   await chrome.storage.local.remove(LEGACY_STORAGE_KEYS);
+
+  if (languageChanged) {
+    await setLanguageChoice(nextLanguage);
+    applyI18n();
+    applyAppVersion();
+    fillAutoRefreshPresetSelect();
+  }
 
   autoRefreshInput.value = String(safeMinutes);
   syncPresetSelectToInput();
 
-  statusEl.textContent = "保存しました";
+  statusEl.textContent = t("options_saved");
   window.setTimeout(() => {
     statusEl.textContent = "";
   }, 1800);

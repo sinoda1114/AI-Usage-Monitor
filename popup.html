@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ja">
+<html>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -10,15 +10,51 @@
     <main class="app">
       <header class="header">
         <div class="header-main">
-          <h1>AI Usage Monitor</h1>
-          <section class="actions">
-            <button id="refreshNow" type="button">更新</button>
-            <button id="togglePause" type="button" class="warn">停止</button>
-            <button id="openOptions" type="button" class="secondary">設定</button>
+          <h1 data-i18n="extName">AI Usage Monitor</h1>
+          <section class="actions" aria-label="Actions">
+            <button id="refreshNow" type="button" class="icon-btn" data-label-key="popup_refresh">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"
+                />
+              </svg>
+            </button>
+            <button id="togglePause" type="button" class="icon-btn warn" data-label-key="popup_pause">
+              <svg class="icon icon-pause" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor" />
+                <rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor" />
+              </svg>
+              <svg class="icon icon-play" viewBox="0 0 24 24" aria-hidden="true" focusable="false" hidden>
+                <path d="M8 5v14l11-7L8 5z" fill="currentColor" />
+              </svg>
+            </button>
+            <button id="openOptions" type="button" class="icon-btn secondary" data-label-key="popup_settings">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none">
+                <path
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.37.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z"
+                />
+                <path
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                />
+              </svg>
+            </button>
           </section>
         </div>
-        <p id="updatedAt">最終更新: --</p>
-        <p id="modeState" class="mode-state">状態: --</p>
+        <p id="updatedAt"></p>
+        <p id="modeState" class="mode-state"></p>
       </header>
 
       <section>
@@ -26,6 +62,7 @@
         <div id="providers" class="providers"></div>
       </section>
     </main>
+    <script src="./i18n.js"></script>
     <script src="./popup.js"></script>
   </body>
 </html>

@@ -1,8 +1,23 @@
-const USAGE_URLS = [
-  "https://cursor.com/ja/dashboard/spending",
+importScripts("i18n.js");
+void initI18n();
+
+const STATIC_USAGE_URLS = [
+  "https://cursor.com/dashboard/spending",
   "https://chatgpt.com/codex/cloud/settings/analytics#usage",
   "https://claude.ai/settings/usage",
 ];
+
+const DEVIN_ORG_SLUG_KEY = "devinOrgSlug";
+
+async function getCollectorUrls() {
+  const urls = [...STATIC_USAGE_URLS];
+  const stored = await chrome.storage.local.get(DEVIN_ORG_SLUG_KEY);
+  const slug = String(stored[DEVIN_ORG_SLUG_KEY] ?? "").trim();
+  if (slug && /^[a-zA-Z0-9_-]+$/.test(slug)) {
+    urls.push(`https://app.devin.ai/org/${encodeURIComponent(slug)}/settings/usage`);
+  }
+  return urls;
+}
 
 const AUTO_REFRESH_ALARM = "ai-usage-auto-refresh";
 const DEFAULT_AUTO_REFRESH_MINUTES = 1;
@@ -33,6 +48,21 @@ chrome.runtime.onStartup.addListener(() => {
 chrome.storage.onChanged.addListener((changes, areaName) => {
   if (areaName !== "local" || !changes.autoRefreshMinutes) return;
   void initAutoRefreshAlarm();
+});
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status !== "complete" || !tab.url) return;
+  let pathname = "";
+  try {
+    const u = new URL(tab.url);
+    if (u.hostname !== "app.devin.ai" && !u.hostname.endsWith(".devin.ai")) return;
+    pathname = u.pathname || "";
+    if (!/\/org\/[^/]+\//.test(pathname)) return;
+    if (!/usage/i.test(pathname)) return;
+  } catch {
+    return;
+  }
+  void chrome.tabs.sendMessage(tabId, { type: "AI_USAGE_COLLECT_NOW" }).catch(() => {});
 });
 
 async function getAutoRefreshMinutes() {
@@ -66,23 +96,25 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === "AI_USAGE_REFRESH_NOW") {
-    void isPaused()
-      .then((paused) => {
+    void initI18n()
+      .then(() => isPaused())
+      .then(async (paused) => {
         if (paused) {
-          sendResponse({ ok: false, paused: true, error: "更新停止中です。再開してから実行してください。" });
+          sendResponse({ ok: false, paused: true, error: t("bg_pausedMustResume") });
           return;
         }
-        sendResponse({ ok: true, started: true, urls: USAGE_URLS });
+        const urls = await getCollectorUrls();
+        sendResponse({ ok: true, started: true, urls });
         void refreshAllUsagePages().catch(() => {});
         if (sender.tab?.id) {
           void chrome.tabs.sendMessage(sender.tab.id, {
             type: "AI_USAGE_REFRESH_STARTED",
-            urls: USAGE_URLS,
+            urls,
           });
         }
       })
       .catch(() => {
-        sendResponse({ ok: false, error: "更新開始に失敗しました" });
+        sendResponse({ ok: false, error: t("bg_errRefreshStart") });
       });
     return true;
   }
@@ -97,19 +129,25 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === "AI_USAGE_SET_PAUSED") {
     void setPaused(Boolean(message.paused))
       .then((paused) => sendResponse({ ok: true, paused }))
-      .catch(() => sendResponse({ ok: false, error: "更新状態の保存に失敗しました" }));
+      .catch(() => sendResponse({ ok: false, error: t("bg_errPauseSave") }));
     return true;
   }
 
   if (message?.type === "AI_USAGE_GET_STORE") {
-    sendResponse({ ok: true, store: latestStore });
-    return;
+    void getLocalUsageStore()
+      .then((store) => {
+        latestStore = store;
+        sendResponse({ ok: true, store });
+      })
+      .catch(() => sendResponse({ ok: false, store: latestStore }));
+    return true;
   }
 
   if (message?.type === "AI_USAGE_SNAPSHOT") {
-    sendResponse({ ok: true, accepted: true });
-    void saveLocalSnapshot(message.snapshot).catch(() => {});
-    return;
+    saveLocalSnapshot(message.snapshot)
+      .then(() => sendResponse({ ok: true, accepted: true }))
+      .catch(() => sendResponse({ ok: false, accepted: false }));
+    return true;
   }
 });
 
@@ -135,7 +173,8 @@ async function saveLocalSnapshot(snapshot) {
 
 async function refreshAllUsagePages() {
   if (await isPaused()) return false;
-  for (const url of USAGE_URLS) {
+  const urls = await getCollectorUrls();
+  for (const url of urls) {
     await openOrFocusCollectorTab(url);
   }
   return true;
@@ -152,9 +191,30 @@ async function setPaused(paused) {
 }
 
 async function openOrFocusCollectorTab(url) {
-  const existing = await chrome.tabs.query({ url: `${originPattern(url)}/*` });
-  const matching = existing.find((tab) => tab.url?.startsWith(url.split("#")[0]));
+  const baseNoHash = url.split("#")[0];
+  let matching;
+
+  if (isCursorUsageCollectorUrl(baseNoHash)) {
+    const cursorTabs = await chrome.tabs.query({ url: "https://cursor.com/*" });
+    matching = cursorTabs.find((tab) => isCursorSpendingPageUrl(tab.url));
+  } else if (isDevinUsageCollectorUrl(baseNoHash)) {
+    const slug = devinOrgSlugFromAppUrl(baseNoHash);
+    if (slug) {
+      const devinTabs = await chrome.tabs.query({ url: "https://app.devin.ai/org/*" });
+      matching = devinTabs.find((tab) => devinOrgSlugFromAppUrl(tab.url ?? "") === slug);
+    }
+  } else {
+    const existing = await chrome.tabs.query({ url: `${originPattern(url)}/*` });
+    matching = existing.find((tab) => tab.url?.startsWith(baseNoHash));
+  }
+
   if (matching?.id) {
+    if (isDevinUsageCollectorUrl(baseNoHash)) {
+      const tabBase = (matching.url ?? "").split("#")[0];
+      if (tabBase === baseNoHash) await chrome.tabs.reload(matching.id);
+      else await chrome.tabs.update(matching.id, { url: baseNoHash, active: false });
+      return;
+    }
     await chrome.tabs.reload(matching.id);
     return;
   }
@@ -177,7 +237,57 @@ async function openOrFocusCollectorTab(url) {
   }
 }
 
+/** pathname が .../dashboard/spending（任意のロケールセグメント付き可） */
+function isCursorSpendingPathname(pathname) {
+  const p = (pathname || "").replace(/\/+$/, "") || "";
+  return /^(\/[a-z]{2}(?:-[A-Z]{2})?)?\/dashboard\/spending$/i.test(p);
+}
+
+/** manifest の Cursor 収集 URL と一致するか */
+function isCursorUsageCollectorUrl(url) {
+  try {
+    const u = new URL(url);
+    return u.hostname === "cursor.com" && isCursorSpendingPathname(u.pathname);
+  } catch {
+    return false;
+  }
+}
+
+/** 既存タブが Cursor の使用量（spending）ページか */
+function isCursorSpendingPageUrl(tabUrl) {
+  if (!tabUrl) return false;
+  try {
+    const u = new URL(tabUrl);
+    return u.hostname === "cursor.com" && isCursorSpendingPathname(u.pathname);
+  } catch {
+    return false;
+  }
+}
+
 function originPattern(url) {
   const parsed = new URL(url);
   return `${parsed.origin}${parsed.pathname.replace(/\/[^/]*$/, "")}`;
+}
+
+function devinOrgSlugFromAppUrl(tabUrl) {
+  if (!tabUrl) return null;
+  try {
+    const u = new URL(tabUrl);
+    if (u.hostname !== "app.devin.ai") return null;
+    const m = u.pathname.match(/^\/org\/([^/]+)/);
+    return m ? decodeURIComponent(m[1]) : null;
+  } catch {
+    return null;
+  }
+}
+
+function isDevinUsageCollectorUrl(url) {
+  try {
+    const u = new URL(url);
+    if (u.hostname !== "app.devin.ai") return false;
+    const p = (u.pathname || "").replace(/\/+$/, "") || "";
+    return /\/settings\/usage$/i.test(p);
+  } catch {
+    return false;
+  }
 }
