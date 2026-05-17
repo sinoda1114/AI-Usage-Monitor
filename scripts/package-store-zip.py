@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parent.parent
 FILES = [
     "manifest.json",
     "background.js",
-    "content.js",
+    "usage-collector.js",
     "i18n.js",
     "popup.html",
     "popup.js",

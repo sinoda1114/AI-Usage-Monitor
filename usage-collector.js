@@ -1,5 +1,15 @@
+/** Collects usage metrics only; no on-page UI (does not load i18n.js). */
+const CONTENT_BUILD = "0.4.15";
+
 let collectorAlive = true;
 let observer = null;
+
+if (globalThis.__aiUsageContentBuild && globalThis.__aiUsageContentBuild !== CONTENT_BUILD) {
+  console.info(
+    "[AI Usage Monitor] Extension was updated. Reload this tab (F5) to clear the old collector."
+  );
+}
+globalThis.__aiUsageContentBuild = CONTENT_BUILD;
 
 window.addEventListener("unhandledrejection", (event) => {
   const reason = String(event.reason?.message || event.reason || "");
@@ -20,7 +30,7 @@ function stopCollector(reason) {
   if (!collectorAlive) return;
   collectorAlive = false;
   detachObserver();
-  console.info("[AI Usage Collector] stopped collector loop:", reason);
+  console.info("[AI Usage Monitor] stopped collector loop:", reason);
 }
 
 function isDevinUsagePath(pathname) {
@@ -442,7 +452,7 @@ async function sendSnapshot() {
       snapshot,
     });
     if (!result?.ok) {
-      console.warn("[AI Usage Collector] snapshot not saved", result);
+      console.warn("[AI Usage Monitor] snapshot not saved", result);
       return;
     }
   } catch (error) {
@@ -450,7 +460,7 @@ async function sendSnapshot() {
       stopCollector("snapshot message rejected: context invalidated");
       return;
     }
-    console.warn("[AI Usage Collector] snapshot send failed", error);
+    console.warn("[AI Usage Monitor] snapshot send failed", error);
     return;
   }
 
@@ -478,7 +488,7 @@ function scheduleSend() {
         stopCollector("sendSnapshot rejected: context invalidated");
         return;
       }
-      console.warn("[AI Usage Collector] sendSnapshot failed", error);
+      console.warn("[AI Usage Monitor] sendSnapshot failed", error);
     });
   }, 1200);
 }
