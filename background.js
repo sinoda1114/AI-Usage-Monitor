@@ -111,9 +111,11 @@ void getLocalUsageStore()
   .catch(() => {});
 
 chrome.runtime.onStartup.addListener(() => {
-  void registerCollectorContentScript();
-  void initAutoRefreshAlarm();
-  void refreshAllUsagePages();
+  void (async () => {
+    await registerCollectorContentScript().catch(() => {});
+    void initAutoRefreshAlarm();
+    void refreshAllUsagePages();
+  })();
 });
 
 chrome.storage.onChanged.addListener((changes, areaName) => {
