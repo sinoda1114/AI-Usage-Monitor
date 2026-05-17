@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "__MSG_extName__",
-  "version": "0.4.13",
+  "version": "0.4.14",
   "description": "__MSG_extDescription__",
   "default_locale": "en",
   "icons": {
@@ -21,7 +21,7 @@
     "default_title": "__MSG_extName__"
   },
   "options_page": "options.html",
-  "permissions": ["alarms", "storage", "tabs"],
+  "permissions": ["alarms", "storage", "tabs", "scripting"],
   "web_accessible_resources": [
     {
       "resources": ["_locales/*/messages.json"],
@@ -31,17 +31,4 @@
   "background": {
     "service_worker": "background.js"
   },
-  "content_scripts": [
-    {
-      "matches": [
-        "https://cursor.com/*/dashboard/spending*",
-        "https://cursor.com/dashboard/spending*",
-        "https://chatgpt.com/codex/cloud/settings/analytics*",
-        "https://claude.ai/settings/usage*",
-        "https://app.devin.ai/*"
-      ],
-      "js": ["content.js"],
-      "run_at": "document_idle"
-    }
-  ]
 }

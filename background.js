@@ -26,10 +26,32 @@ const MAX_AUTO_REFRESH_MINUTES = 120;
 const STORE_KEY = "aiUsageStore";
 const PAUSED_KEY = "aiUsagePaused";
 const LEGACY_STORAGE_KEYS = ["dashboardBaseUrl", "dashboardBaseUrls", "ingestToken", "aiUsageLastCommandId"];
+const COLLECTOR_SCRIPT_ID = "ai-usage-collector";
+const LEGACY_COLLECTOR_SCRIPT_IDS = [COLLECTOR_SCRIPT_ID, "ai-usage-collector-legacy", "content.js"];
+const COLLECTOR_MATCHES = [
+  "https://cursor.com/*/dashboard/spending*",
+  "https://cursor.com/dashboard/spending*",
+  "https://chatgpt.com/codex/cloud/settings/analytics*",
+  "https://claude.ai/settings/usage*",
+  "https://app.devin.ai/*",
+];
 let latestStore = { updatedAt: null, providers: {} };
+
+async function registerCollectorContentScript() {
+  await chrome.scripting.unregisterContentScripts({ ids: LEGACY_COLLECTOR_SCRIPT_IDS }).catch(() => {});
+  await chrome.scripting.registerContentScripts([
+    {
+      id: COLLECTOR_SCRIPT_ID,
+      js: ["usage-collector.js"],
+      matches: COLLECTOR_MATCHES,
+      runAt: "document_idle",
+    },
+  ]);
+}
 
 chrome.runtime.onInstalled.addListener(() => {
   void chrome.storage.local.remove(LEGACY_STORAGE_KEYS);
+  void registerCollectorContentScript();
   void initAutoRefreshAlarm();
   void refreshAllUsagePages();
 });
@@ -41,6 +63,7 @@ void getLocalUsageStore()
   .catch(() => {});
 
 chrome.runtime.onStartup.addListener(() => {
+  void registerCollectorContentScript();
   void initAutoRefreshAlarm();
   void refreshAllUsagePages();
 });
