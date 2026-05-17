@@ -94,7 +94,7 @@ async function reloadCollectorTabsIfVersionChanged() {
 
 async function onExtensionReady() {
   await chrome.storage.local.remove(LEGACY_STORAGE_KEYS);
-  await registerCollectorContentScript();
+  await registerCollectorContentScript().catch(() => {});
   await reloadCollectorTabsIfVersionChanged();
   await initAutoRefreshAlarm();
   await refreshAllUsagePages();
