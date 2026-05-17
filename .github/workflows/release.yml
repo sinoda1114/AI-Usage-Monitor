@@ -24,17 +24,10 @@ jobs:
 
       - name: Build extension zip
         run: |
+          python3 scripts/package-store-zip.py
           mkdir -p dist
-          zip -r "dist/ai-usage-monitor-v${{ steps.version.outputs.value }}.zip" \
-            manifest.json \
-            background.js \
-            content.js \
-            popup.html \
-            popup.js \
-            popup.css \
-            options.html \
-            options.js \
-            icons
+          cp "releases/ai-usage-monitor-store-v${{ steps.version.outputs.value }}.zip" \
+            "dist/ai-usage-monitor-v${{ steps.version.outputs.value }}.zip"
 
       - name: Create GitHub release and upload asset
         uses: softprops/action-gh-release@v2

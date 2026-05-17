@@ -19,42 +19,136 @@ function isContextInvalidatedError(error) {
 function stopCollector(reason) {
   if (!collectorAlive) return;
   collectorAlive = false;
-  observer?.disconnect();
+  detachObserver();
   console.info("[AI Usage Collector] stopped collector loop:", reason);
 }
 
-function providerFromLocation() {
+function isDevinUsagePath(pathname) {
+  const p = (pathname || "").replace(/\/+$/, "") || "";
+  if (/\/settings\/usage$/i.test(p)) return true;
+  if (/\/settings\/usage-and-limits$/i.test(p)) return true;
+  if (/\/settings\/[^/]*usage/i.test(p)) return true;
+  if (/\/usage(?:\/limits)?$/i.test(p)) return true;
+  return false;
+}
+
+function isDevinHost(hostname) {
+  return hostname === "app.devin.ai" || hostname.endsWith(".devin.ai");
+}
+
+async function resolveProvider() {
   const href = window.location.href;
-  if (href.includes("cursor.com")) return "cursor";
-  if (href.includes("chatgpt.com/codex")) return "codex";
-  if (href.includes("claude.ai/settings/usage")) return "claude";
+  try {
+    const u = new URL(href);
+
+    if (u.hostname.includes("cursor.com")) return "cursor";
+    if (href.includes("chatgpt.com/codex")) return "codex";
+    if (href.includes("claude.ai/settings/usage")) return "claude";
+
+    if (!isDevinHost(u.hostname)) return null;
+
+    const path = decodeURIComponent((u.pathname || "").replace(/\/+$/, "") || "");
+    const pathSlug = path.match(/^\/org\/([a-zA-Z0-9_-]+)/)?.[1];
+
+    if (pathSlug && isDevinUsagePath(path)) return "devin";
+
+    const { devinOrgSlug } = await chrome.storage.local.get("devinOrgSlug");
+    const configured = String(devinOrgSlug ?? "").trim();
+    const slug = configured || pathSlug;
+    if (!slug) return null;
+
+    const seg = `/org/${slug}`;
+    if (path === seg || path.startsWith(`${seg}/`)) return "devin";
+
+    const authLike = /\/auth|\/login|\/signin|\/signup/i.test(path);
+    if (authLike) {
+      const keys = ["redirect", "next", "returnUrl", "return_url"];
+      for (const key of keys) {
+        const raw = u.searchParams.get(key);
+        if (!raw) continue;
+        try {
+          const dec = decodeURIComponent(raw);
+          if (dec.includes(seg)) return "devin";
+        } catch {
+          if (raw.includes(slug)) return "devin";
+        }
+      }
+      try {
+        const full = decodeURIComponent(href);
+        if (full.includes(seg)) return "devin";
+      } catch {
+        if (href.includes(slug)) return "devin";
+      }
+    }
+  } catch {
+    return null;
+  }
+
   return null;
 }
 
 function compactText() {
-  return document.body.innerText.replace(/\s+/g, " ").trim();
+  const parts = [];
+  const seen = new WeakSet();
+
+  function walk(node) {
+    if (!node || seen.has(node)) return;
+    if (node.nodeType === Node.TEXT_NODE) {
+      const value = node.textContent?.replace(/\s+/g, " ").trim();
+      if (value) parts.push(value);
+      return;
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+
+    const el = node;
+    seen.add(el);
+    if (el.shadowRoot) walk(el.shadowRoot);
+    for (const child of el.childNodes) walk(child);
+  }
+
+  if (document.body) walk(document.body);
+  const joined = parts.join(" ").replace(/\s+/g, " ").trim();
+  if (joined) return joined;
+  return (document.body?.innerText ?? "").replace(/\s+/g, " ").trim();
 }
 
 function findReset(text) {
-  const reset =
-    text.match(/(?:Resets on|Reset on|リセット)[^\d一-龠ぁ-んァ-ン]{0,10}([^。,.|]{2,32}?)(?=\s+(?:Total|Auto|API|Included|On-Demand|$))/i)?.[1]?.trim() ??
-    text.match(/(?:Reset|Resets|リセット)[^\d一-龠ぁ-んァ-ン]{0,10}([^。,.|]{2,32}?)(?=\s+(?:Total|Auto|API|Included|On-Demand|$))/i)?.[1]?.trim() ??
-    text.match(/(\d+\s*(?:days?|日)後?[^\s。,.|]{0,16})/)?.[1]?.trim();
+  const resetsIn = text.match(/Resets\s+in\s+([^\n.,;|]{2,40})/i)?.[1]?.trim();
+  if (resetsIn) return resetsIn;
+
+  const resetsOn =
+    text.match(/Resets\s+on\s+(\d{1,2}\s*月\s*\d{1,2}\s*日(?:\s*\([^)]*\))?)/i)?.[1]?.trim() ??
+    text.match(/Resets\s+on\s+([A-Za-z]{3,9}\s+\d{1,2}(?:\s*\([^)]*\))?)/i)?.[1]?.trim() ??
+    text.match(/Resets\s+on\s+(\d{1,2}\/\d{1,2}(?:\/\d{2,4})?(?:\s*\([^)]*\))?)/i)?.[1]?.trim();
+  if (resetsOn) return resetsOn;
+
+  const relative =
+    text.match(/(\d+)\s*(?:days?\s*later|日後)/i) ?? text.match(/あと\s*(\d+)\s*日/);
+  if (relative) return `${relative[1]} days`;
+
+  return undefined;
+}
+
+/** Cursor spending: avoid matching "14 日間の無料トライアル" as reset. */
+function findCursorReset(text) {
   return (
-    reset
-      ?.replace(/\s+(?:Total|Auto \+ Composer|API|Included|On-Demand).*$/i, "")
-      .trim()
+    text.match(/Resets\s+on\s+(\d{1,2}\s*月\s*\d{1,2}\s*日(?:\s*\([^)]*\))?)/i)?.[1]?.trim() ??
+    text.match(/Resets\s+on\s+([A-Za-z]{3,9}\s+\d{1,2}(?:\s*\([^)]*\))?)/i)?.[1]?.trim() ??
+    text.match(/Resets\s+on\s+(\d{1,2}\/\d{1,2}(?:\/\d{2,4})?(?:\s*\([^)]*\))?)/i)?.[1]?.trim() ??
+    text.match(/Resets\s+in\s+([^\n.,;|]{2,36})/i)?.[1]?.trim()
   );
 }
 
 function metricId(provider, label) {
-  if (provider === "codex" && label.includes("5時間")) return "codex-five-hour";
-  if (provider === "codex" && label.includes("週あたり")) return "codex-weekly";
+  if (provider === "codex" && /5\s*時間|5[-\s]*hour/i.test(label)) return "codex-five-hour";
+  if (provider === "codex" && /週あたり|weekly/i.test(label)) return "codex-weekly";
   if (provider === "claude" && /現在のセッション|current session/i.test(label)) return "claude-current-session";
   if (provider === "claude" && /週間制限|weekly|すべてのモデル/i.test(label)) return "claude-weekly";
   if (provider === "claude" && /ルーティン|routine/i.test(label)) return "claude-routines";
   if (provider === "claude" && /追加使用量|extra/i.test(label)) return "claude-extra";
   if (provider === "claude" && /claude\s*design/i.test(label)) return "claude-design";
+  if (provider === "devin" && /daily\s*quota/i.test(label)) return "devin-daily-quota";
+  if (provider === "devin" && /weekly\s*quota/i.test(label)) return "devin-weekly-quota";
   const slug = label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   return `${provider}-${slug || "usage"}`;
 }
@@ -83,38 +177,56 @@ function metricsFromBars(provider) {
   const resetAt = findReset(text);
 
   if (provider === "cursor") {
+    const cursorReset = findCursorReset(text);
     const total = text.match(/(?:Included in Pro\s+)?Total\s+(\d{1,3})\s*%/i);
-    if (total) pushMetric(metrics, provider, "Total", Number(total[1]), resetAt);
+    if (total) pushMetric(metrics, provider, "Total", Number(total[1]), cursorReset);
 
     const auto =
       text.match(/Auto\s*\+\s*Composer\s+(\d{1,3})\s*%/i) ??
       text.match(/(\d{1,3})\s*%\s*Auto(?:\s+and|\s|$)/i);
-    if (auto) pushMetric(metrics, provider, "Auto + Composer", Number(auto[1]), resetAt);
+    if (auto) pushMetric(metrics, provider, "Auto + Composer", Number(auto[1]), cursorReset);
 
     const api =
       text.match(/API\s+(\d{1,3})\s*%/i) ??
       text.match(/(\d{1,3})\s*%\s*API\s+used/i);
-    if (api) pushMetric(metrics, provider, "API", Number(api[1]), resetAt);
+    if (api) pushMetric(metrics, provider, "API", Number(api[1]), cursorReset);
 
     if (metrics.length > 0) return metrics;
   }
 
   if (provider === "codex") {
-    const fiveHour = text.match(
-      /5\s*時間の使用制限\s+(\d{1,3})\s*%\s*(残り|使用済み)?[^リ]*(?:リセット[:：]\s*([^\s]+))?/i
-    );
-    if (fiveHour) pushMetric(metrics, provider, "5時間の使用制限", codexUsed(Number(fiveHour[1]), fiveHour[2]), fiveHour[3] ?? resetAt);
+    const fiveHour =
+      text.match(
+        /5\s*時間の使用制限\s+(\d{1,3})\s*%\s*(残り|使用済み)?[^リ]*(?:リセット[:：]\s*([^\s]+))?/i
+      ) ??
+      text.match(
+        /5[-\s]*hour(?:ly)?\s+(?:usage\s+)?limit[^0-9]{0,48}(\d{1,3})\s*%\s*(remaining|used)?[^.]{0,48}(?:reset(?:s)?(?:\s+on)?[:：]?\s*([^\s,.|]+))?/i
+      );
+    if (fiveHour) {
+      const label = /5\s*時間/.test(text) ? "5時間の使用制限" : "5-hour usage limit";
+      pushMetric(metrics, provider, label, codexUsed(Number(fiveHour[1]), fiveHour[2]), fiveHour[3] ?? resetAt);
+    }
 
-    const weekly = text.match(
-      /週あたりの使用制限\s+(\d{1,3})\s*%\s*(残り|使用済み)?[^リ]*(?:リセット[:：]\s*([^\s]+(?:\s+[^\s]+)?))?/i
-    );
-    if (weekly) pushMetric(metrics, provider, "週あたりの使用制限", codexUsed(Number(weekly[1]), weekly[2]), weekly[3] ?? resetAt);
+    const weekly =
+      text.match(
+        /週あたりの使用制限\s+(\d{1,3})\s*%\s*(残り|使用済み)?[^リ]*(?:リセット[:：]\s*([^\s]+(?:\s+[^\s]+)?))?/i
+      ) ??
+      text.match(
+        /weekly\s+(?:usage\s+)?limit[^0-9]{0,48}(\d{1,3})\s*%\s*(remaining|used)?[^.]{0,48}(?:reset(?:s)?(?:\s+on)?[:：]?\s*([^\s,.|]+(?:\s+[^\s,.|]+)?))?/i
+      );
+    if (weekly) {
+      const label = /週あたり/.test(text) ? "週あたりの使用制限" : "Weekly usage limit";
+      pushMetric(metrics, provider, label, codexUsed(Number(weekly[1]), weekly[2]), weekly[3] ?? resetAt);
+    }
 
-    const credits = text.match(/残りのクレジット\s+(\d+(?:\.\d+)?)/);
+    const credits =
+      text.match(/残りのクレジット\s+(\d+(?:\.\d+)?)/) ??
+      text.match(/(?:credits?\s+)?remaining[^0-9]{0,24}(\d+(?:\.\d+)?)/i);
     if (credits) {
+      const label = /残りのクレジット/.test(text) ? "残りのクレジット" : "Credits remaining";
       metrics.push({
         id: "codex-credits",
-        label: "残りのクレジット",
+        label,
         usedPercentage: null,
         detail: credits[1],
       });
@@ -144,16 +256,20 @@ function metricsFromBars(provider) {
     }
 
     const routines =
-      text.match(/(?:ルーティン実行数|routine runs?)[^0-9]{0,80}(\d+)\s*\/\s*(\d+)/i);
+      text.match(/(?:ルーティン実行数|routine runs?)[^0-9]{0,80}(\d+)\s*\/\s*(\d+)/i) ??
+      text.match(/(?:included\s+)?routine\s+runs?[^0-9]{0,80}(\d+)\s*\/\s*(\d+)/i);
     if (routines) {
       const used = Number(routines[1]);
       const limit = Number(routines[2]);
+      const label = /ルーティン/.test(text)
+        ? "1日の含まれるルーティン実行数"
+        : "Included routine runs per day";
       pushMetric(
         metrics,
         provider,
-        "1日の含まれるルーティン実行数",
+        label,
         limit > 0 ? (used / limit) * 100 : 0,
-        "毎日",
+        /毎日|daily/i.test(text) ? "Daily" : "毎日",
         `${used} / ${limit}`
       );
     }
@@ -164,6 +280,60 @@ function metricsFromBars(provider) {
     if (extra) pushMetric(metrics, provider, "追加使用量", Number(extra[2]), resetFromSection(extra[1]));
 
     if (metrics.length > 0) return metrics;
+  }
+
+  if (provider === "devin") {
+    const resetDevin = findReset(text);
+
+    const daily =
+      text.match(/Daily\s+quota\s*:?\s*(\d{1,3})\s*%\s*used\b/i) ??
+      text.match(/Daily\s+quota[^0-9]{0,120}(\d{1,3})\s*%\s*used\b/i) ??
+      text.match(/日次\s*(?:クォータ|割当)?\s*:?\s*(\d{1,3})\s*%[^0-9]{0,16}(?:used|使用)/i);
+    if (daily) pushMetric(metrics, provider, "Daily quota", Number(daily[1]), resetDevin);
+
+    const weekly =
+      text.match(/Weekly\s+quota\s*:?\s*(\d{1,3})\s*%\s*used\b/i) ??
+      text.match(/Weekly\s+quota[^0-9]{0,120}(\d{1,3})\s*%\s*used\b/i) ??
+      text.match(/週次\s*(?:クォータ|割当)?\s*:?\s*(\d{1,3})\s*%[^0-9]{0,16}(?:used|使用)/i);
+    if (weekly) pushMetric(metrics, provider, "Weekly quota", Number(weekly[1]), resetDevin);
+
+    const acu =
+      text.match(/\b(\d+)\s*\/\s*(\d+)\s+ACUs?\b/i) ??
+      text.match(/\b(\d+)\s*\/\s*(\d+)\s+ACU\b/i) ??
+      text.match(/\bACUs?\s*[:\s]+\s*(\d+)\s*\/\s*(\d+)/i);
+    if (acu && Number(acu[2]) > 0) {
+      pushMetric(
+        metrics,
+        provider,
+        "ACU",
+        Math.min(100, (Number(acu[1]) / Number(acu[2])) * 100),
+        resetDevin ?? resetAt,
+        `${acu[1]} / ${acu[2]}`
+      );
+    }
+
+    const onDemandBal = text.match(/Remaining\s+balance\s*:?\s*\$?\s*([\-\d.,]+)/i);
+    if (onDemandBal && !metrics.some((m) => m.id === "devin-on-demand-balance")) {
+      metrics.push({
+        id: "devin-on-demand-balance",
+        label: "On-demand balance",
+        usedPercentage: null,
+        detail: `$${onDemandBal[1].replace(/,/g, "")}`,
+      });
+    }
+
+    const creditsLine =
+      text.match(/(?:credits?\s+remaining|残り(?:の)?クレジット)[^\d]{0,24}(\d[\d,.]*)/i) ??
+      text.match(/(?:クレジット|残高)[^\d]{0,12}(\d[\d,.]*)/);
+    if (creditsLine && !metrics.some((m) => m.id === "devin-credits")) {
+      metrics.push({
+        id: "devin-credits",
+        label: "Credits",
+        usedPercentage: null,
+        detail: creditsLine[1].replace(/,/g, ""),
+      });
+    }
+    return metrics;
   }
 
   const candidates = [...document.querySelectorAll("body *")]
@@ -193,48 +363,62 @@ function resetFromSection(section) {
     section.match(/(\d+\s*時間\s*\d+\s*分後にリセット)/)?.[1]?.trim() ??
     section.match(/(\d+\s*時間後にリセット)/)?.[1]?.trim() ??
     section.match(/(\d+\s*分後にリセット)/)?.[1]?.trim() ??
+    section.match(/(\d+\s*hours?\s*\d+\s*minutes?\s*later)/i)?.[1]?.trim() ??
+    section.match(/(\d+\s*hours?\s*later)/i)?.[1]?.trim() ??
+    section.match(/(\d+\s*minutes?\s*later)/i)?.[1]?.trim() ??
     section.match(/(\d{1,2}:\d{2}\s*\([^)]+\)\s*にリセット)/)?.[1]?.trim() ??
     section.match(/([A-Z][a-z]{2}\s+\d{1,2}\s*にリセット)/)?.[1]?.trim() ??
+    section.match(/([A-Z][a-z]{2}\s+\d{1,2})/)?.[1]?.trim() ??
     section.match(/([0-9]{4}\/[0-9]{2}\/[0-9]{2}\s+[0-9]{1,2}:[0-9]{2})/)?.[1]?.trim()
   );
 }
 
 function codexUsed(value, qualifier) {
-  return qualifier === "残り" ? 100 - value : value;
+  const q = String(qualifier || "").toLowerCase();
+  return q === "残り" || q === "remaining" ? 100 - value : value;
 }
 
 function providerName(provider) {
   if (provider === "cursor") return "Cursor";
   if (provider === "codex") return "Codex";
+  if (provider === "devin") return "Devin";
   return "Claude";
 }
 
-function showBadge(ok, message) {
-  const id = "ai-usage-collector-badge";
-  document.getElementById(id)?.remove();
-  const badge = document.createElement("div");
-  badge.id = id;
-  badge.textContent = message;
-  badge.style.cssText = [
-    "position:fixed",
-    "right:16px",
-    "bottom:16px",
-    "z-index:2147483647",
-    "padding:8px 10px",
-    "border-radius:6px",
-    "font:12px/1.4 system-ui,sans-serif",
-    "box-shadow:0 8px 24px rgba(0,0,0,.25)",
-    `background:${ok ? "#16351f" : "#3b2419"}`,
-    `color:${ok ? "#b8f5c4" : "#ffd0b5"}`,
-    `border:1px solid ${ok ? "#2c6f3b" : "#8a4b2d"}`,
-  ].join(";");
-  document.documentElement.appendChild(badge);
+function detachObserver() {
+  observer?.disconnect();
+  observer = null;
+}
+
+function attachObserver() {
+  if (observer || !document.body) return;
+  observer = new MutationObserver(scheduleSend);
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+    characterData: true,
+  });
+}
+
+async function syncCollectorForPage() {
+  if (!collectorAlive) return false;
+  const provider = await resolveProvider();
+  if (!provider) {
+    detachObserver();
+    return false;
+  }
+  attachObserver();
+  return true;
 }
 
 async function sendSnapshot() {
   if (!collectorAlive) return;
-  const provider = providerFromLocation();
-  if (!provider) return;
+  const provider = await resolveProvider();
+  if (!provider) {
+    detachObserver();
+    return;
+  }
+  attachObserver();
 
   const metrics = metricsFromBars(provider);
   const snapshot = {
@@ -252,18 +436,24 @@ async function sendSnapshot() {
         : `Collector ran on ${document.title}, but no metric matched`,
   };
 
-  chrome.runtime
-    ?.sendMessage?.({
+  try {
+    const result = await chrome.runtime.sendMessage({
       type: "AI_USAGE_SNAPSHOT",
       snapshot,
-    })
-    ?.catch((error) => {
-      if (isContextInvalidatedError(error)) {
-        stopCollector("snapshot message rejected: context invalidated");
-      }
     });
+    if (!result?.ok) {
+      console.warn("[AI Usage Collector] snapshot not saved", result);
+      return;
+    }
+  } catch (error) {
+    if (isContextInvalidatedError(error)) {
+      stopCollector("snapshot message rejected: context invalidated");
+      return;
+    }
+    console.warn("[AI Usage Collector] snapshot send failed", error);
+    return;
+  }
 
-  showBadge(metrics.length > 0, `AI Usage Monitor: ${metrics.length} 件のメトリクスを保存`);
   chrome.runtime
     ?.sendMessage?.({
       type: "AI_USAGE_COLLECTED",
@@ -286,15 +476,44 @@ function scheduleSend() {
     void sendSnapshot().catch((error) => {
       if (isContextInvalidatedError(error)) {
         stopCollector("sendSnapshot rejected: context invalidated");
+        return;
       }
+      console.warn("[AI Usage Collector] sendSnapshot failed", error);
     });
   }, 1200);
 }
 
-scheduleSend();
-observer = new MutationObserver(scheduleSend);
-observer.observe(document.body, {
-  childList: true,
-  subtree: true,
-  characterData: true,
+function scheduleDevinRetries() {
+  if (!isDevinHost(window.location.hostname) || !isDevinUsagePath(window.location.pathname || "")) return;
+  for (const delay of [400, 1200, 3000, 6000]) {
+    window.setTimeout(() => scheduleSend(), delay);
+  }
+}
+
+async function startCollector() {
+  if (!document.body) return;
+  if (await syncCollectorForPage()) {
+    scheduleSend();
+    scheduleDevinRetries();
+  }
+}
+
+function onNavigation() {
+  void startCollector();
+}
+
+chrome.runtime.onMessage.addListener((message) => {
+  if (message?.type === "AI_USAGE_COLLECT_NOW") {
+    void startCollector();
+  }
 });
+
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName !== "local" || !changes.devinOrgSlug) return;
+  void startCollector();
+});
+window.addEventListener("popstate", onNavigation);
+window.addEventListener("hashchange", onNavigation);
+
+if (document.body) void startCollector();
+else document.addEventListener("DOMContentLoaded", () => void startCollector(), { once: true });

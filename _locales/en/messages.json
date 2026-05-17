@@ -1,0 +1,248 @@
+{
+  "extName": {
+    "message": "AI Usage Monitor"
+  },
+  "extDescription": {
+    "message": "Read Cursor, Codex, Claude, and optionally Devin usage pages and show metrics in the extension popup."
+  },
+  "popup_refresh": {
+    "message": "Refresh"
+  },
+  "popup_pause": {
+    "message": "Pause"
+  },
+  "popup_resume": {
+    "message": "Resume"
+  },
+  "popup_settings": {
+    "message": "Settings"
+  },
+  "popup_lastUpdated": {
+    "message": "Last updated: $time$",
+    "placeholders": {
+      "time": {
+        "content": "$1",
+        "example": "--"
+      }
+    }
+  },
+  "popup_modeRunning": {
+    "message": "Running"
+  },
+  "popup_modePaused": {
+    "message": "Updates paused"
+  },
+  "popup_pausedHint": {
+    "message": "Updates are paused. Resume to restart background collection."
+  },
+  "popup_resetPrefix": {
+    "message": "Reset:"
+  },
+  "popup_resetDaily": {
+    "message": "Daily"
+  },
+  "popup_noMetrics": {
+    "message": "No metrics yet."
+  },
+  "popup_emptyStore": {
+    "message": "Nothing to show. Check which providers are enabled in Settings."
+  },
+  "popup_errContextInvalidated": {
+    "message": "The extension was updated. Please reload the extension."
+  },
+  "popup_errStoreFailed": {
+    "message": "Failed to load usage data."
+  },
+  "popup_errPauseFailed": {
+    "message": "Failed to update pause state."
+  },
+  "popup_pausedMustResume": {
+    "message": "Updates are paused. Resume before refreshing."
+  },
+  "popup_refreshing": {
+    "message": "Refreshing… Reloading in a few seconds."
+  },
+  "popup_errRefreshStart": {
+    "message": "Failed to start refresh."
+  },
+  "popup_errRefresh": {
+    "message": "Refresh failed: $detail$",
+    "placeholders": {
+      "detail": {
+        "content": "$1",
+        "example": "unknown error"
+      }
+    }
+  },
+  "popup_errLoad": {
+    "message": "Failed to load: $detail$",
+    "placeholders": {
+      "detail": {
+        "content": "$1",
+        "example": "unknown error"
+      }
+    }
+  },
+  "popup_errGeneric": {
+    "message": "Error: $detail$",
+    "placeholders": {
+      "detail": {
+        "content": "$1",
+        "example": "unknown error"
+      }
+    }
+  },
+  "options_intro": {
+    "message": "Choose which providers appear in the popup and their order. Cursor, Codex, and Claude are on by default; Devin is optional and needs your Devin org slug below. Data stays in the extension only; nothing is sent to external servers."
+  },
+  "options_languageLabel": {
+    "message": "Display language"
+  },
+  "options_languageHint": {
+    "message": "Choose the language for the popup and settings. “Browser default” follows your Chrome language."
+  },
+  "options_languageAuto": {
+    "message": "Browser default"
+  },
+  "options_languageEn": {
+    "message": "English"
+  },
+  "options_languageJa": {
+    "message": "日本語"
+  },
+  "options_autoRefreshLabel": {
+    "message": "Auto-refresh interval"
+  },
+  "options_minutesSuffix": {
+    "message": "min"
+  },
+  "options_presetPlaceholder": {
+    "message": "Choose a preset…"
+  },
+  "options_presetMinutes": {
+    "message": "$minutes$ min",
+    "placeholders": {
+      "minutes": {
+        "content": "$1",
+        "example": "5"
+      }
+    }
+  },
+  "options_autoRefreshHint": {
+    "message": "Enter an integer from 1 to 120, or pick a preset to fill the field."
+  },
+  "options_autoRefreshPresetAria": {
+    "message": "Apply a common interval to the input field"
+  },
+  "options_popupSectionTitle": {
+    "message": "Popup display"
+  },
+  "options_popupSectionHint": {
+    "message": "Drag rows to reorder. Use “Show” to toggle visibility. By default only Cursor, Codex, and Claude appear; enable Devin when needed."
+  },
+  "options_devinOrgLabel": {
+    "message": "Devin organization slug"
+  },
+  "options_devinOrgHint": {
+    "message": "The segment after /org/ in your Devin usage URL (example: my-org in https://app.devin.ai/org/my-org/settings/usage). Leave blank to skip collecting Devin."
+  },
+  "options_devinOrgPlaceholder": {
+    "message": "my-org"
+  },
+  "options_version": {
+    "message": "Version $1$",
+    "placeholders": {
+      "1": { "content": "$1" }
+    }
+  },
+  "options_showLabel": {
+    "message": "Show"
+  },
+  "options_save": {
+    "message": "Save"
+  },
+  "options_saved": {
+    "message": "Saved"
+  },
+  "bg_pausedMustResume": {
+    "message": "Updates are paused. Resume before refreshing."
+  },
+  "bg_errRefreshStart": {
+    "message": "Failed to start refresh."
+  },
+  "bg_errPauseSave": {
+    "message": "Failed to save pause state."
+  },
+  "content_metricsSaved": {
+    "message": "AI Usage Monitor: saved $count$ metric(s)",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "content_collecting": {
+    "message": "AI Usage Monitor: collecting…"
+  },
+  "content_devinWaiting": {
+    "message": "AI Usage Monitor: waiting for page content…"
+  },
+  "content_devinWrongPage": {
+    "message": "AI Usage Monitor: open your org Usage & Limits page"
+  },
+  "content_saveFailed": {
+    "message": "AI Usage Monitor: could not save"
+  },
+  "metric_usage": {
+    "message": "Usage"
+  },
+  "metric_codex_five_hour": {
+    "message": "5-hour usage limit"
+  },
+  "metric_codex_weekly": {
+    "message": "Weekly usage limit"
+  },
+  "metric_codex_credits": {
+    "message": "Credits remaining"
+  },
+  "metric_claude_current_session": {
+    "message": "Current session"
+  },
+  "metric_claude_weekly": {
+    "message": "Weekly limit"
+  },
+  "metric_claude_design": {
+    "message": "Claude Design"
+  },
+  "metric_claude_routines": {
+    "message": "Included routine runs per day"
+  },
+  "metric_claude_extra": {
+    "message": "Extra usage"
+  },
+  "metric_cursor_total": {
+    "message": "Total"
+  },
+  "metric_cursor_auto_composer": {
+    "message": "Auto + Composer"
+  },
+  "metric_cursor_api": {
+    "message": "API"
+  },
+  "metric_devin_acu": {
+    "message": "ACU usage"
+  },
+  "metric_devin_credits": {
+    "message": "Credits"
+  },
+  "metric_devin_daily_quota": {
+    "message": "Daily quota"
+  },
+  "metric_devin_weekly_quota": {
+    "message": "Weekly quota"
+  },
+  "metric_devin_on_demand_balance": {
+    "message": "On-demand balance"
+  }
+}

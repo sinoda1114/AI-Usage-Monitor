@@ -1,0 +1,248 @@
+{
+  "extName": {
+    "message": "AI Usage Monitor"
+  },
+  "extDescription": {
+    "message": "Cursor・Codex・Claude の利用状況ページを読み取り、オプションで Devin の使用量ページも読み取って、拡張のポップアップにメトリクスを表示します。"
+  },
+  "popup_refresh": {
+    "message": "更新"
+  },
+  "popup_pause": {
+    "message": "停止"
+  },
+  "popup_resume": {
+    "message": "再開"
+  },
+  "popup_settings": {
+    "message": "設定"
+  },
+  "popup_lastUpdated": {
+    "message": "最終更新: $time$",
+    "placeholders": {
+      "time": {
+        "content": "$1",
+        "example": "--"
+      }
+    }
+  },
+  "popup_modeRunning": {
+    "message": "稼働中"
+  },
+  "popup_modePaused": {
+    "message": "更新停止中"
+  },
+  "popup_pausedHint": {
+    "message": "更新停止中です。再開すると巡回を再開できます。"
+  },
+  "popup_resetPrefix": {
+    "message": "リセット:"
+  },
+  "popup_resetDaily": {
+    "message": "毎日"
+  },
+  "popup_noMetrics": {
+    "message": "まだメトリクスがありません。"
+  },
+  "popup_emptyStore": {
+    "message": "表示対象のデータがありません。設定で表示対象を確認してください。"
+  },
+  "popup_errContextInvalidated": {
+    "message": "拡張が更新されました。拡張を再読み込みしてください。"
+  },
+  "popup_errStoreFailed": {
+    "message": "ストア取得に失敗しました"
+  },
+  "popup_errPauseFailed": {
+    "message": "停止状態の更新に失敗しました"
+  },
+  "popup_pausedMustResume": {
+    "message": "更新停止中です。再開してから実行してください。"
+  },
+  "popup_refreshing": {
+    "message": "更新しています。数秒後に再読み込みします..."
+  },
+  "popup_errRefreshStart": {
+    "message": "更新開始に失敗しました"
+  },
+  "popup_errRefresh": {
+    "message": "更新に失敗: $detail$",
+    "placeholders": {
+      "detail": {
+        "content": "$1",
+        "example": "unknown error"
+      }
+    }
+  },
+  "popup_errLoad": {
+    "message": "読み込みに失敗: $detail$",
+    "placeholders": {
+      "detail": {
+        "content": "$1",
+        "example": "unknown error"
+      }
+    }
+  },
+  "popup_errGeneric": {
+    "message": "エラー: $detail$",
+    "placeholders": {
+      "detail": {
+        "content": "$1",
+        "example": "unknown error"
+      }
+    }
+  },
+  "options_intro": {
+    "message": "ポップアップに表示するプロバイダーと並び順を設定します。既定では Cursor・Codex・Claude（いわゆる3C）のみ表示します。Devin を集める場合は表示をオンにし、下記に組織スラッグを入力してください。データは拡張内にだけ保存され、外部サーバーへ送りません。"
+  },
+  "options_languageLabel": {
+    "message": "表示言語"
+  },
+  "options_languageHint": {
+    "message": "ポップアップと設定画面の言語です。「ブラウザに合わせる」は Chrome の言語設定に従います。"
+  },
+  "options_languageAuto": {
+    "message": "ブラウザに合わせる"
+  },
+  "options_languageEn": {
+    "message": "English"
+  },
+  "options_languageJa": {
+    "message": "日本語"
+  },
+  "options_autoRefreshLabel": {
+    "message": "自動更新の間隔"
+  },
+  "options_minutesSuffix": {
+    "message": "分"
+  },
+  "options_presetPlaceholder": {
+    "message": "プリセットから選ぶ…"
+  },
+  "options_presetMinutes": {
+    "message": "$minutes$ 分",
+    "placeholders": {
+      "minutes": {
+        "content": "$1",
+        "example": "5"
+      }
+    }
+  },
+  "options_autoRefreshHint": {
+    "message": "1〜120 の整数を入力するか、プリセットを選ぶと入力欄に反映されます。"
+  },
+  "options_autoRefreshPresetAria": {
+    "message": "よく使う間隔から入力欄に反映"
+  },
+  "options_popupSectionTitle": {
+    "message": "ポップアップ表示設定"
+  },
+  "options_popupSectionHint": {
+    "message": "行をドラッグして並べ替え。「表示する」でポップアップへの表示を切り替えます。既定は Cursor・Codex・Claude のみです。Devin が必要なときだけオンにしてください。"
+  },
+  "options_devinOrgLabel": {
+    "message": "Devin の組織スラッグ（org の名前）"
+  },
+  "options_devinOrgHint": {
+    "message": "使用量ページの URL で /org/ の直後の部分です（例: https://app.devin.ai/org/my-org/settings/usage の my-org）。空欄のときは Devin の収集タブは開きません。"
+  },
+  "options_devinOrgPlaceholder": {
+    "message": "my-org"
+  },
+  "options_version": {
+    "message": "バージョン $1$",
+    "placeholders": {
+      "1": { "content": "$1" }
+    }
+  },
+  "options_showLabel": {
+    "message": "表示する"
+  },
+  "options_save": {
+    "message": "保存"
+  },
+  "options_saved": {
+    "message": "保存しました"
+  },
+  "bg_pausedMustResume": {
+    "message": "更新停止中です。再開してから実行してください。"
+  },
+  "bg_errRefreshStart": {
+    "message": "更新開始に失敗しました"
+  },
+  "bg_errPauseSave": {
+    "message": "更新状態の保存に失敗しました"
+  },
+  "content_metricsSaved": {
+    "message": "AI Usage Monitor: $count$ 件のメトリクスを保存",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "content_collecting": {
+    "message": "AI Usage Monitor: 取得中…"
+  },
+  "content_devinWaiting": {
+    "message": "AI Usage Monitor: ページの表示を待っています…"
+  },
+  "content_devinWrongPage": {
+    "message": "AI Usage Monitor: Usage & Limits ページで開いてください"
+  },
+  "content_saveFailed": {
+    "message": "AI Usage Monitor: 保存に失敗しました"
+  },
+  "metric_usage": {
+    "message": "使用量"
+  },
+  "metric_codex_five_hour": {
+    "message": "5時間の使用制限"
+  },
+  "metric_codex_weekly": {
+    "message": "週あたりの使用制限"
+  },
+  "metric_codex_credits": {
+    "message": "残りのクレジット"
+  },
+  "metric_claude_current_session": {
+    "message": "現在のセッション"
+  },
+  "metric_claude_weekly": {
+    "message": "週間制限"
+  },
+  "metric_claude_design": {
+    "message": "Claude Design"
+  },
+  "metric_claude_routines": {
+    "message": "1日の含まれるルーティン実行数"
+  },
+  "metric_claude_extra": {
+    "message": "追加使用量"
+  },
+  "metric_cursor_total": {
+    "message": "Total"
+  },
+  "metric_cursor_auto_composer": {
+    "message": "Auto + Composer"
+  },
+  "metric_cursor_api": {
+    "message": "API"
+  },
+  "metric_devin_acu": {
+    "message": "ACU 使用量"
+  },
+  "metric_devin_credits": {
+    "message": "クレジット"
+  },
+  "metric_devin_daily_quota": {
+    "message": "日次クォータ"
+  },
+  "metric_devin_weekly_quota": {
+    "message": "週次クォータ"
+  },
+  "metric_devin_on_demand_balance": {
+    "message": "オンデマンド残高"
+  }
+}

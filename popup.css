@@ -2,17 +2,40 @@
   box-sizing: border-box;
 }
 
+/*
+ * Chrome 拡張ポップアップの上限: 幅 800px × 高さ 600px（これ以上はブラウザが伸ばさない）
+ * https://developer.chrome.com/docs/extensions/develop/ui/add-popup
+ */
+html {
+  width: 360px;
+  height: 600px;
+  max-height: 600px;
+  overflow: hidden;
+}
+
 body {
   margin: 0;
-  font: 13px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  height: 100%;
+  overflow: hidden;
+  font: 12px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
   color: #e7edf4;
   background: #0f1720;
 }
 
 .app {
-  width: 360px;
-  min-height: 320px;
-  padding: 12px;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 10px 10px 12px;
+  display: flex;
+  flex-direction: column;
+}
+
+.app > section {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .header h1 {
@@ -21,7 +44,7 @@ body {
 }
 
 .header p {
-  margin: 2px 0 0;
+  margin: 1px 0 0;
   font-size: 11px;
   color: #9aa8b8;
 }
@@ -63,6 +86,26 @@ button {
   cursor: pointer;
 }
 
+button.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+}
+
+button.icon-btn .icon {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+button.icon-btn[hidden],
+button.icon-btn .icon[hidden] {
+  display: none;
+}
+
 button:hover {
   background: #204877;
 }
@@ -90,9 +133,9 @@ button.warn.is-paused {
 }
 
 .status {
-  margin-top: 6px;
+  margin-top: 4px;
   min-height: 0;
-  font-size: 12px;
+  font-size: 11px;
   color: #b8c7d9;
 }
 
@@ -106,23 +149,27 @@ button.warn.is-paused {
 
 .providers {
   display: grid;
-  gap: 10px;
+  gap: 8px;
+  align-content: start;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .provider {
   border: 1px solid #263341;
   background: #131e29;
-  border-radius: 10px;
-  padding: 10px;
+  border-radius: 8px;
+  padding: 8px 9px;
   border-left-width: 4px;
 }
 
 .provider h2 {
-  margin: 0 0 8px;
-  font-size: 13px;
+  margin: 0 0 6px;
+  font-size: 12px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
 }
 
 .provider-icon {
@@ -138,10 +185,21 @@ button.warn.is-paused {
   background: rgba(255, 255, 255, 0.08);
 }
 
+.provider-icon--devin {
+  border-radius: 6px;
+  color: #9cf5e8;
+}
+
+.provider-icon--devin svg {
+  display: block;
+  width: 12px;
+  height: 12px;
+}
+
 .metric {
   display: grid;
-  gap: 3px;
-  margin-bottom: 8px;
+  gap: 2px;
+  margin-bottom: 5px;
 }
 
 .metric:last-child {
@@ -176,7 +234,7 @@ button.warn.is-paused {
 
 .bar {
   width: 100%;
-  height: 6px;
+  height: 5px;
   border-radius: 999px;
   background: #263341;
   overflow: hidden;
@@ -208,8 +266,12 @@ button.warn.is-paused {
   background: linear-gradient(90deg, #8f77ff, #b29bff);
 }
 
-.provider-claude .bar span {
-  background: linear-gradient(90deg, #ff9b55, #ffca7f);
+.provider-devin {
+  border-left-color: #5eead4;
+}
+
+.provider-devin .bar span {
+  background: linear-gradient(90deg, #2dd4bf, #7dd3fc);
 }
 
 .empty {
