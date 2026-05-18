@@ -163,7 +163,7 @@ if (userDaily?.usedPercentage !== 36 || userWeekly?.usedPercentage !== 18) {
   console.log("OK scrape user sample: daily=36%/8h, weekly=18%/6d");
 }
 
-const url = "https://app.devin.ai/org/my-org/settings/usage-and-limits";
+const url = "https://app.devin.ai/org/my-org/settings/usage";
 if (resolveProviderFromUrl(url, "") !== "devin") {
   console.error("FAIL resolveProvider: should work without stored slug on usage URL");
   failed++;

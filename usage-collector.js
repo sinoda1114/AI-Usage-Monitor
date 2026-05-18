@@ -1,5 +1,5 @@
 /** Collects usage metrics only; no on-page UI (does not load i18n.js). */
-const CONTENT_BUILD = "0.4.16";
+const CONTENT_BUILD = "0.4.18";
 
 let collectorAlive = true;
 let observer = null;
@@ -35,10 +35,10 @@ function stopCollector(reason) {
 
 function isDevinUsagePath(pathname) {
   const p = (pathname || "").replace(/\/+$/, "") || "";
-  if (/\/settings\/usage$/i.test(p)) return true;
   if (/\/settings\/usage-and-limits$/i.test(p)) return true;
+  if (/\/settings\/usage$/i.test(p)) return true;
   if (/\/settings\/[^/]*usage/i.test(p)) return true;
-  if (/\/usage(?:\/limits)?$/i.test(p)) return true;
+  if (/^\/org\/[^/]+\/usage(?:-and-limits)?$/i.test(p)) return true;
   return false;
 }
 
