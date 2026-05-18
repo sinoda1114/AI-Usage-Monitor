@@ -1,14 +1,19 @@
-const SUPPORTED_LOCALES = ["en", "ja"];
+const SUPPORTED_LOCALES = ["en", "ja", "zh_CN", "ko", "es"];
+const FALLBACK_LOCALE = "en";
 const LOCALE_CACHE = {};
 const UI_LANGUAGE_KEY = "uiLanguage";
 
-let activeLocale = "en";
+let activeLocale = FALLBACK_LOCALE;
 let userChoice = "auto";
 let initPromise = null;
 
 function resolveBrowserLocale() {
-  const lang = (chrome.i18n.getUILanguage() || "en").toLowerCase();
-  return lang.startsWith("ja") ? "ja" : "en";
+  const raw = (chrome.i18n.getUILanguage() || "en").toLowerCase().replace("-", "_");
+  if (raw.startsWith("ja")) return "ja";
+  if (raw.startsWith("zh")) return "zh_CN";
+  if (raw.startsWith("ko")) return "ko";
+  if (raw.startsWith("es")) return "es";
+  return FALLBACK_LOCALE;
 }
 
 function formatMessage(entry, substitutions) {
@@ -33,6 +38,11 @@ async function loadLocaleMessages(locale) {
   return LOCALE_CACHE[locale];
 }
 
+function htmlLangTag(locale) {
+  if (locale === "zh_CN") return "zh-CN";
+  return locale.replace("_", "-");
+}
+
 async function initI18n() {
   if (initPromise) return initPromise;
 
@@ -44,10 +54,13 @@ async function initI18n() {
         ? resolveBrowserLocale()
         : SUPPORTED_LOCALES.includes(userChoice)
           ? userChoice
-          : "en";
-    await loadLocaleMessages(activeLocale);
+          : FALLBACK_LOCALE;
+    await loadLocaleMessages(FALLBACK_LOCALE);
+    if (activeLocale !== FALLBACK_LOCALE) {
+      await loadLocaleMessages(activeLocale);
+    }
     if (typeof document !== "undefined" && document.documentElement) {
-      document.documentElement.lang = activeLocale;
+      document.documentElement.lang = htmlLangTag(activeLocale);
     }
   })();
 
@@ -56,7 +69,8 @@ async function initI18n() {
 
 /** @param {string} key @param {string|string[]} [substitutions] */
 function t(key, substitutions) {
-  const entry = LOCALE_CACHE[activeLocale]?.[key];
+  const entry =
+    LOCALE_CACHE[activeLocale]?.[key] ?? LOCALE_CACHE[FALLBACK_LOCALE]?.[key];
   if (entry) return formatMessage(entry, substitutions) || key;
   const subs =
     substitutions === undefined ? undefined : Array.isArray(substitutions) ? substitutions : [substitutions];

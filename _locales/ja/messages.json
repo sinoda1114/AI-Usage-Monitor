@@ -110,6 +110,15 @@
   "options_languageJa": {
     "message": "日本語"
   },
+  "options_languageZhCn": {
+    "message": "简体中文"
+  },
+  "options_languageKo": {
+    "message": "한국어"
+  },
+  "options_languageEs": {
+    "message": "Español"
+  },
   "options_autoRefreshLabel": {
     "message": "自動更新の間隔"
   },

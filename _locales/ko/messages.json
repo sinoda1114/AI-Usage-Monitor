@@ -1,0 +1,257 @@
+{
+  "extName": {
+    "message": "AI Usage Monitor"
+  },
+  "extDescription": {
+    "message": "Cursor, Codex, Claude 사용량 페이지를 읽고, 선택 시 Devin 사용량 페이지도 읽어 확장 프로그램 팝업에 표시합니다."
+  },
+  "popup_refresh": {
+    "message": "새로고침"
+  },
+  "popup_pause": {
+    "message": "일시정지"
+  },
+  "popup_resume": {
+    "message": "재개"
+  },
+  "popup_settings": {
+    "message": "설정"
+  },
+  "popup_lastUpdated": {
+    "message": "마지막 업데이트: $time$",
+    "placeholders": {
+      "time": {
+        "content": "$1",
+        "example": "--"
+      }
+    }
+  },
+  "popup_modeRunning": {
+    "message": "실행 중"
+  },
+  "popup_modePaused": {
+    "message": "업데이트 일시정지"
+  },
+  "popup_pausedHint": {
+    "message": "업데이트가 일시정지되었습니다. 재개하면 백그라운드 수집이 다시 시작됩니다."
+  },
+  "popup_resetPrefix": {
+    "message": "초기화:"
+  },
+  "popup_resetDaily": {
+    "message": "매일"
+  },
+  "popup_noMetrics": {
+    "message": "아직 지표가 없습니다."
+  },
+  "popup_emptyStore": {
+    "message": "표시할 데이터가 없습니다. 설정에서 표시할 서비스를 확인하세요."
+  },
+  "popup_errContextInvalidated": {
+    "message": "확장 프로그램이 업데이트되었습니다. 확장 프로그램을 다시 로드하세요."
+  },
+  "popup_errStoreFailed": {
+    "message": "사용량 데이터를 불러오지 못했습니다."
+  },
+  "popup_errPauseFailed": {
+    "message": "일시정지 상태를 업데이트하지 못했습니다."
+  },
+  "popup_pausedMustResume": {
+    "message": "업데이트가 일시정지되었습니다. 새로고침 전에 재개하세요."
+  },
+  "popup_refreshing": {
+    "message": "새로고침 중… 몇 초 후 다시 불러옵니다."
+  },
+  "popup_errRefreshStart": {
+    "message": "새로고침을 시작하지 못했습니다."
+  },
+  "popup_errRefresh": {
+    "message": "새로고침 실패: $detail$",
+    "placeholders": {
+      "detail": {
+        "content": "$1",
+        "example": "unknown error"
+      }
+    }
+  },
+  "popup_errLoad": {
+    "message": "불러오기 실패: $detail$",
+    "placeholders": {
+      "detail": {
+        "content": "$1",
+        "example": "unknown error"
+      }
+    }
+  },
+  "popup_errGeneric": {
+    "message": "오류: $detail$",
+    "placeholders": {
+      "detail": {
+        "content": "$1",
+        "example": "unknown error"
+      }
+    }
+  },
+  "options_intro": {
+    "message": "팝업에 표시할 서비스와 순서를 선택합니다. 기본값은 Cursor, Codex, Claude입니다. Devin은 선택 사항이며 아래에 조직 slug를 입력하세요. 데이터는 확장 프로그램에만 저장되며 외부 서버로 전송되지 않습니다."
+  },
+  "options_languageLabel": {
+    "message": "표시 언어"
+  },
+  "options_languageHint": {
+    "message": "팝업과 설정 화면의 언어입니다. 「브라우저 기본값」은 Chrome 언어 설정을 따릅니다."
+  },
+  "options_languageAuto": {
+    "message": "브라우저 기본값"
+  },
+  "options_languageEn": {
+    "message": "English"
+  },
+  "options_languageJa": {
+    "message": "日本語"
+  },
+  "options_languageZhCn": {
+    "message": "简体中文"
+  },
+  "options_languageKo": {
+    "message": "한국어"
+  },
+  "options_languageEs": {
+    "message": "Español"
+  },
+  "options_autoRefreshLabel": {
+    "message": "자동 새로고침 간격"
+  },
+  "options_minutesSuffix": {
+    "message": "분"
+  },
+  "options_presetPlaceholder": {
+    "message": "프리셋 선택…"
+  },
+  "options_presetMinutes": {
+    "message": "$minutes$분",
+    "placeholders": {
+      "minutes": {
+        "content": "$1",
+        "example": "5"
+      }
+    }
+  },
+  "options_autoRefreshHint": {
+    "message": "1~120 사이의 정수를 입력하거나 프리셋을 선택해 입력란에 채웁니다."
+  },
+  "options_autoRefreshPresetAria": {
+    "message": "자주 쓰는 간격을 입력란에 적용"
+  },
+  "options_popupSectionTitle": {
+    "message": "팝업 표시"
+  },
+  "options_popupSectionHint": {
+    "message": "행을 끌어 순서를 바꿉니다. 「표시」로 팝업 표시 여부를 전환합니다. 기본은 Cursor, Codex, Claude만 표시됩니다. 필요할 때만 Devin을 켜세요."
+  },
+  "options_devinOrgLabel": {
+    "message": "Devin 조직 slug"
+  },
+  "options_devinOrgHint": {
+    "message": "Devin 사용량 URL에서 /org/ 뒤의 부분입니다(예: https://app.devin.ai/org/my-org/settings/usage 의 my-org). 비우면 Devin을 수집하지 않습니다."
+  },
+  "options_devinOrgPlaceholder": {
+    "message": "my-org"
+  },
+  "options_version": {
+    "message": "버전 $1$",
+    "placeholders": {
+      "1": { "content": "$1" }
+    }
+  },
+  "options_showLabel": {
+    "message": "표시"
+  },
+  "options_save": {
+    "message": "저장"
+  },
+  "options_saved": {
+    "message": "저장됨"
+  },
+  "bg_pausedMustResume": {
+    "message": "업데이트가 일시정지되었습니다. 새로고침 전에 재개하세요."
+  },
+  "bg_errRefreshStart": {
+    "message": "새로고침을 시작하지 못했습니다."
+  },
+  "bg_errPauseSave": {
+    "message": "일시정지 상태를 저장하지 못했습니다."
+  },
+  "content_metricsSaved": {
+    "message": "AI Usage Monitor: $count$개 지표 저장됨",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "content_collecting": {
+    "message": "AI Usage Monitor: 수집 중…"
+  },
+  "content_devinWaiting": {
+    "message": "AI Usage Monitor: 페이지 콘텐츠 대기 중…"
+  },
+  "content_devinWrongPage": {
+    "message": "AI Usage Monitor: 조직 Usage 페이지를 여세요"
+  },
+  "content_saveFailed": {
+    "message": "AI Usage Monitor: 저장 실패"
+  },
+  "metric_usage": {
+    "message": "사용량"
+  },
+  "metric_codex_five_hour": {
+    "message": "5시간 사용 한도"
+  },
+  "metric_codex_weekly": {
+    "message": "주간 사용 한도"
+  },
+  "metric_codex_credits": {
+    "message": "남은 크레딧"
+  },
+  "metric_claude_current_session": {
+    "message": "현재 세션"
+  },
+  "metric_claude_weekly": {
+    "message": "주간 한도"
+  },
+  "metric_claude_design": {
+    "message": "Claude Design"
+  },
+  "metric_claude_routines": {
+    "message": "일일 포함 루틴 실행 횟수"
+  },
+  "metric_claude_extra": {
+    "message": "추가 사용량"
+  },
+  "metric_cursor_total": {
+    "message": "Total"
+  },
+  "metric_cursor_auto_composer": {
+    "message": "Auto + Composer"
+  },
+  "metric_cursor_api": {
+    "message": "API"
+  },
+  "metric_devin_acu": {
+    "message": "ACU 사용량"
+  },
+  "metric_devin_credits": {
+    "message": "크레딧"
+  },
+  "metric_devin_daily_quota": {
+    "message": "일일 할당량"
+  },
+  "metric_devin_weekly_quota": {
+    "message": "주간 할당량"
+  },
+  "metric_devin_on_demand_balance": {
+    "message": "온디맨드 잔액"
+  }
+}

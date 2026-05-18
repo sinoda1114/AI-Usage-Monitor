@@ -1,5 +1,5 @@
 /** Collects usage metrics only; no on-page UI (does not load i18n.js). */
-const CONTENT_BUILD = "0.4.18";
+const CONTENT_BUILD = "0.5.0";
 
 let collectorAlive = true;
 let observer = null;
