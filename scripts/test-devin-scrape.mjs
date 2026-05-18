@@ -9,13 +9,32 @@ const SAMPLE_TEXT =
   "Weekly quota 4% used Resets in 5 hours On-demand usage " +
   "Remaining balance $-0.10 No on-demand balance remaining.";
 
-function findReset(text) {
-  const reset =
-    text.match(/Resets\s+in\s+([^\n.,;]{2,40})/i)?.[1]?.trim() ??
-    text.match(/(?:Resets on|Reset on|リセット)[^\d一-龠ぁ-んァ-ン]{0,10}([^。,.|]{2,32}?)(?=\s+(?:Total|Auto|API|Included|On-Demand|$))/i)?.[1]?.trim() ??
-    text.match(/(?:Reset|Resets|リセット)[^\d一-龠ぁ-んァ-ン]{0,10}([^。,.|]{2,32}?)(?=\s+(?:Total|Auto|API|Included|On-Demand|$))/i)?.[1]?.trim() ??
-    text.match(/(\d+\s*(?:days?|日)後?[^\s。,.|]{0,16})/)?.[1]?.trim();
-  return reset?.replace(/\s+(?:Total|Auto \+ Composer|API|Included|On-Demand).*$/i, "").trim();
+const SAMPLE_TEXT_USER =
+  "Your included usage Daily quota 36% used Resets in 8 hours " +
+  "Weekly quota 18% used Resets in 6 days On-demand usage Remaining balance $-0.10";
+
+function parseDevinQuotaSection(text, kind) {
+  const patterns =
+    kind === "daily"
+      ? [/Daily\s+quota/i, /日次\s*(?:クォータ|割当)?/i]
+      : [/Weekly\s+quota/i, /週次\s*(?:クォータ|割当)?/i];
+  let idx = -1;
+  for (const pattern of patterns) {
+    const found = text.search(pattern);
+    if (found >= 0 && (idx < 0 || found < idx)) idx = found;
+  }
+  if (idx < 0) return null;
+  const slice = text.slice(idx, idx + 240);
+  const pctMatch =
+    slice.match(/(\d{1,3})\s*%\s*used\b/i) ??
+    slice.match(/(\d{1,3})\s*%\s*(?:使用|利用)/i) ??
+    slice.match(/used\s*:?\s*(\d{1,3})\s*%/i);
+  if (!pctMatch) return null;
+  const resetAt =
+    slice.match(/Resets\s+in\s+(\d+\s+hours?)/i)?.[1]?.trim() ??
+    slice.match(/Resets\s+in\s+(\d+\s+days?)/i)?.[1]?.trim() ??
+    slice.match(/Resets\s+in\s+(\d+\s+minutes?)/i)?.[1]?.trim();
+  return { usedPercentage: Number(pctMatch[1]), resetAt };
 }
 
 function metricId(provider, label) {
@@ -41,17 +60,16 @@ function pushMetric(metrics, provider, label, usedPercentage, resetAt, detail) {
 
 function devinMetricsFromText(text) {
   const metrics = [];
-  const resetAt = findReset(text);
 
-  const daily =
-    text.match(/Daily\s+quota\s*:?\s*(\d{1,3})\s*%\s*used\b/i) ??
-    text.match(/Daily\s+quota[^0-9]{0,120}(\d{1,3})\s*%\s*used\b/i);
-  if (daily) pushMetric(metrics, "devin", "Daily quota", Number(daily[1]), resetAt);
+  const dailySection = parseDevinQuotaSection(text, "daily");
+  if (dailySection) {
+    pushMetric(metrics, "devin", "Daily quota", dailySection.usedPercentage, dailySection.resetAt);
+  }
 
-  const weekly =
-    text.match(/Weekly\s+quota\s*:?\s*(\d{1,3})\s*%\s*used\b/i) ??
-    text.match(/Weekly\s+quota[^0-9]{0,120}(\d{1,3})\s*%\s*used\b/i);
-  if (weekly) pushMetric(metrics, "devin", "Weekly quota", Number(weekly[1]), resetAt);
+  const weeklySection = parseDevinQuotaSection(text, "weekly");
+  if (weeklySection) {
+    pushMetric(metrics, "devin", "Weekly quota", weeklySection.usedPercentage, weeklySection.resetAt);
+  }
 
   const onDemandBal = text.match(/Remaining\s+balance\s*:?\s*\$?\s*([\-\d.,]+)/i);
   if (onDemandBal) {
@@ -132,7 +150,20 @@ if (metrics.length < 3) {
   }
 }
 
-const url = "https://app.devin.ai/org/my-org/settings/usage";
+const userMetrics = devinMetricsFromText(SAMPLE_TEXT_USER);
+const userDaily = userMetrics.find((m) => m.id === "devin-daily-quota");
+const userWeekly = userMetrics.find((m) => m.id === "devin-weekly-quota");
+if (userDaily?.usedPercentage !== 36 || userWeekly?.usedPercentage !== 18) {
+  console.error("FAIL scrape user sample", userMetrics);
+  failed++;
+} else if (userDaily.resetAt !== "8 hours" || userWeekly.resetAt !== "6 days") {
+  console.error("FAIL scrape user resets", userDaily, userWeekly);
+  failed++;
+} else {
+  console.log("OK scrape user sample: daily=36%/8h, weekly=18%/6d");
+}
+
+const url = "https://app.devin.ai/org/my-org/settings/usage-and-limits";
 if (resolveProviderFromUrl(url, "") !== "devin") {
   console.error("FAIL resolveProvider: should work without stored slug on usage URL");
   failed++;

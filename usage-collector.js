@@ -1,5 +1,5 @@
 /** Collects usage metrics only; no on-page UI (does not load i18n.js). */
-const CONTENT_BUILD = "0.4.15";
+const CONTENT_BUILD = "0.4.16";
 
 let collectorAlive = true;
 let observer = null;
@@ -66,9 +66,6 @@ async function resolveProvider() {
     const configured = String(devinOrgSlug ?? "").trim();
     const slug = configured || pathSlug;
     if (!slug) return null;
-
-    const seg = `/org/${slug}`;
-    if (path === seg || path.startsWith(`${seg}/`)) return "devin";
 
     const authLike = /\/auth|\/login|\/signin|\/signup/i.test(path);
     if (authLike) {
@@ -293,19 +290,15 @@ function metricsFromBars(provider) {
   }
 
   if (provider === "devin") {
-    const resetDevin = findReset(text);
+    const dailySection = parseDevinQuotaSection(text, "daily");
+    if (dailySection) {
+      pushMetric(metrics, provider, "Daily quota", dailySection.usedPercentage, dailySection.resetAt);
+    }
 
-    const daily =
-      text.match(/Daily\s+quota\s*:?\s*(\d{1,3})\s*%\s*used\b/i) ??
-      text.match(/Daily\s+quota[^0-9]{0,120}(\d{1,3})\s*%\s*used\b/i) ??
-      text.match(/日次\s*(?:クォータ|割当)?\s*:?\s*(\d{1,3})\s*%[^0-9]{0,16}(?:used|使用)/i);
-    if (daily) pushMetric(metrics, provider, "Daily quota", Number(daily[1]), resetDevin);
-
-    const weekly =
-      text.match(/Weekly\s+quota\s*:?\s*(\d{1,3})\s*%\s*used\b/i) ??
-      text.match(/Weekly\s+quota[^0-9]{0,120}(\d{1,3})\s*%\s*used\b/i) ??
-      text.match(/週次\s*(?:クォータ|割当)?\s*:?\s*(\d{1,3})\s*%[^0-9]{0,16}(?:used|使用)/i);
-    if (weekly) pushMetric(metrics, provider, "Weekly quota", Number(weekly[1]), resetDevin);
+    const weeklySection = parseDevinQuotaSection(text, "weekly");
+    if (weeklySection) {
+      pushMetric(metrics, provider, "Weekly quota", weeklySection.usedPercentage, weeklySection.resetAt);
+    }
 
     const acu =
       text.match(/\b(\d+)\s*\/\s*(\d+)\s+ACUs?\b/i) ??
@@ -317,7 +310,7 @@ function metricsFromBars(provider) {
         provider,
         "ACU",
         Math.min(100, (Number(acu[1]) / Number(acu[2])) * 100),
-        resetDevin ?? resetAt,
+        dailySection?.resetAt ?? weeklySection?.resetAt ?? resetAt,
         `${acu[1]} / ${acu[2]}`
       );
     }
@@ -386,6 +379,34 @@ function resetFromSection(section) {
 function codexUsed(value, qualifier) {
   const q = String(qualifier || "").toLowerCase();
   return q === "残り" || q === "remaining" ? 100 - value : value;
+}
+
+/** Devin: parse quota block so reset text does not bleed across Daily / Weekly. */
+function parseDevinQuotaSection(text, kind) {
+  const patterns =
+    kind === "daily"
+      ? [/Daily\s+quota/i, /日次\s*(?:クォータ|割当)?/i]
+      : [/Weekly\s+quota/i, /週次\s*(?:クォータ|割当)?/i];
+  let idx = -1;
+  for (const pattern of patterns) {
+    const found = text.search(pattern);
+    if (found >= 0 && (idx < 0 || found < idx)) idx = found;
+  }
+  if (idx < 0) return null;
+
+  const slice = text.slice(idx, idx + 240);
+  const pctMatch =
+    slice.match(/(\d{1,3})\s*%\s*used\b/i) ??
+    slice.match(/(\d{1,3})\s*%\s*(?:使用|利用)/i) ??
+    slice.match(/used\s*:?\s*(\d{1,3})\s*%/i) ??
+    slice.match(/(?:使用|利用)\s*:?\s*(\d{1,3})\s*%/i);
+  if (!pctMatch) return null;
+
+  const resetAt =
+    slice.match(/Resets\s+in\s+(\d+\s+hours?)/i)?.[1]?.trim() ??
+    slice.match(/Resets\s+in\s+(\d+\s+days?)/i)?.[1]?.trim() ??
+    slice.match(/Resets\s+in\s+(\d+\s+minutes?)/i)?.[1]?.trim();
+  return { usedPercentage: Number(pctMatch[1]), resetAt };
 }
 
 function providerName(provider) {

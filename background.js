@@ -8,14 +8,51 @@ const STATIC_USAGE_URLS = [
 ];
 
 const DEVIN_ORG_SLUG_KEY = "devinOrgSlug";
+const POPUP_PROVIDER_PREFS_KEY = "popupProviderPrefs";
+
+function devinUsagePageUrl(slug) {
+  return `https://app.devin.ai/org/${encodeURIComponent(slug)}/settings/usage-and-limits`;
+}
+
+function isDevinAppHost(hostname) {
+  return hostname === "app.devin.ai" || hostname.endsWith(".devin.ai");
+}
+
+function isDevinUsagePathname(pathname) {
+  const p = (pathname || "").replace(/\/+$/, "") || "";
+  if (/\/settings\/usage-and-limits$/i.test(p)) return true;
+  if (/\/settings\/usage$/i.test(p)) return true;
+  if (/\/settings\/[^/]*usage/i.test(p)) return true;
+  return false;
+}
+
+function isDevinUsagePageUrl(tabUrl) {
+  if (!tabUrl) return false;
+  try {
+    const u = new URL(tabUrl);
+    return isDevinAppHost(u.hostname) && isDevinUsagePathname(u.pathname);
+  } catch {
+    return false;
+  }
+}
+
+async function getDevinOrgSlug() {
+  const stored = await chrome.storage.local.get([DEVIN_ORG_SLUG_KEY, POPUP_PROVIDER_PREFS_KEY, STORE_KEY]);
+  let slug = String(stored[DEVIN_ORG_SLUG_KEY] ?? "").trim();
+  if (!slug) {
+    const devinUrl = stored[STORE_KEY]?.providers?.devin?.url;
+    if (devinUrl) slug = devinOrgSlugFromAppUrl(devinUrl) ?? "";
+  }
+  if (!slug || !/^[a-zA-Z0-9_-]+$/.test(slug)) return "";
+  const prefs = stored[POPUP_PROVIDER_PREFS_KEY];
+  if (prefs?.devin?.visible === false) return "";
+  return slug;
+}
 
 async function getCollectorUrls() {
   const urls = [...STATIC_USAGE_URLS];
-  const stored = await chrome.storage.local.get(DEVIN_ORG_SLUG_KEY);
-  const slug = String(stored[DEVIN_ORG_SLUG_KEY] ?? "").trim();
-  if (slug && /^[a-zA-Z0-9_-]+$/.test(slug)) {
-    urls.push(`https://app.devin.ai/org/${encodeURIComponent(slug)}/settings/usage`);
-  }
+  const slug = await getDevinOrgSlug();
+  if (slug) urls.push(devinUsagePageUrl(slug));
   return urls;
 }
 
@@ -131,7 +168,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     if (u.hostname !== "app.devin.ai" && !u.hostname.endsWith(".devin.ai")) return;
     pathname = u.pathname || "";
     if (!/\/org\/[^/]+\//.test(pathname)) return;
-    if (!/usage/i.test(pathname)) return;
+    if (!isDevinUsagePathname(pathname)) return;
   } catch {
     return;
   }
@@ -270,21 +307,20 @@ async function openOrFocusCollectorTab(url) {
   if (isCursorUsageCollectorUrl(baseNoHash)) {
     const cursorTabs = await chrome.tabs.query({ url: "https://cursor.com/*" });
     matching = cursorTabs.find((tab) => isCursorSpendingPageUrl(tab.url));
-  } else if (isDevinUsageCollectorUrl(baseNoHash)) {
+  } else if (devinOrgSlugFromAppUrl(baseNoHash)) {
     const slug = devinOrgSlugFromAppUrl(baseNoHash);
-    if (slug) {
-      const devinTabs = await chrome.tabs.query({ url: "https://app.devin.ai/org/*" });
-      matching = devinTabs.find((tab) => devinOrgSlugFromAppUrl(tab.url ?? "") === slug);
-    }
+    const devinTabs = await chrome.tabs.query({ url: "https://app.devin.ai/*" });
+    matching =
+      devinTabs.find((tab) => devinOrgSlugFromAppUrl(tab.url ?? "") === slug && isDevinUsagePageUrl(tab.url)) ??
+      devinTabs.find((tab) => devinOrgSlugFromAppUrl(tab.url ?? "") === slug);
   } else {
     const existing = await chrome.tabs.query({ url: `${originPattern(url)}/*` });
     matching = existing.find((tab) => tab.url?.startsWith(baseNoHash));
   }
 
   if (matching?.id) {
-    if (isDevinUsageCollectorUrl(baseNoHash)) {
-      const tabBase = (matching.url ?? "").split("#")[0];
-      if (tabBase === baseNoHash) await chrome.tabs.reload(matching.id);
+    if (devinOrgSlugFromAppUrl(baseNoHash)) {
+      if (isDevinUsagePageUrl(matching.url)) await chrome.tabs.reload(matching.id);
       else await chrome.tabs.update(matching.id, { url: baseNoHash, active: false });
       return;
     }
@@ -346,21 +382,10 @@ function devinOrgSlugFromAppUrl(tabUrl) {
   if (!tabUrl) return null;
   try {
     const u = new URL(tabUrl);
-    if (u.hostname !== "app.devin.ai") return null;
+    if (!isDevinAppHost(u.hostname)) return null;
     const m = u.pathname.match(/^\/org\/([^/]+)/);
     return m ? decodeURIComponent(m[1]) : null;
   } catch {
     return null;
-  }
-}
-
-function isDevinUsageCollectorUrl(url) {
-  try {
-    const u = new URL(url);
-    if (u.hostname !== "app.devin.ai") return false;
-    const p = (u.pathname || "").replace(/\/+$/, "") || "";
-    return /\/settings\/usage$/i.test(p);
-  } catch {
-    return false;
   }
 }
