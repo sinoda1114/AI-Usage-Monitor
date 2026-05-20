@@ -8,14 +8,74 @@ const STATIC_USAGE_URLS = [
 ];
 
 const DEVIN_ORG_SLUG_KEY = "devinOrgSlug";
+const POPUP_PROVIDER_PREFS_KEY = "popupProviderPrefs";
+const STORE_KEY = "aiUsageStore";
+
+function devinUsagePageUrl(slug) {
+  return `https://app.devin.ai/org/${encodeURIComponent(slug)}/settings/usage`;
+}
+
+function isDevinAppHost(hostname) {
+  return hostname === "app.devin.ai" || hostname.endsWith(".devin.ai");
+}
+
+function isDevinUsagePathname(pathname) {
+  const p = (pathname || "").replace(/\/+$/, "") || "";
+  if (/\/settings\/usage-and-limits$/i.test(p)) return true;
+  if (/\/settings\/usage$/i.test(p)) return true;
+  if (/\/settings\/[^/]*usage/i.test(p)) return true;
+  if (/^\/org\/[^/]+\/usage(?:-and-limits)?$/i.test(p)) return true;
+  return false;
+}
+
+function isDevinUsagePageUrl(tabUrl) {
+  if (!tabUrl) return false;
+  try {
+    const u = new URL(tabUrl);
+    return isDevinAppHost(u.hostname) && isDevinUsagePathname(u.pathname);
+  } catch {
+    return false;
+  }
+}
+
+function isValidDevinSlug(slug) {
+  return Boolean(slug) && /^[a-zA-Z0-9_-]+$/.test(slug);
+}
+
+async function resolveDevinOrgSlug(stored) {
+  let slug = String(stored?.[DEVIN_ORG_SLUG_KEY] ?? "").trim();
+  if (!slug) {
+    slug = devinOrgSlugFromAppUrl(stored?.[STORE_KEY]?.providers?.devin?.url ?? "") ?? "";
+  }
+  if (!slug) {
+    const tabs = await chrome.tabs.query({});
+    for (const tab of tabs) {
+      const fromTab = devinOrgSlugFromAppUrl(tab.url ?? "");
+      if (fromTab) {
+        slug = fromTab;
+        break;
+      }
+    }
+  }
+  return isValidDevinSlug(slug) ? slug : "";
+}
+
+async function getDevinOrgSlug() {
+  const stored = await chrome.storage.local.get([DEVIN_ORG_SLUG_KEY, POPUP_PROVIDER_PREFS_KEY, STORE_KEY]);
+  const slug = await resolveDevinOrgSlug(stored);
+  if (!slug) return "";
+
+  const slugSaved = isValidDevinSlug(String(stored[DEVIN_ORG_SLUG_KEY] ?? "").trim());
+  if (slugSaved) return slug;
+
+  if (stored[POPUP_PROVIDER_PREFS_KEY]?.devin?.visible === false) return "";
+  return slug;
+}
 
 async function getCollectorUrls() {
   const urls = [...STATIC_USAGE_URLS];
-  const stored = await chrome.storage.local.get(DEVIN_ORG_SLUG_KEY);
-  const slug = String(stored[DEVIN_ORG_SLUG_KEY] ?? "").trim();
-  if (slug && /^[a-zA-Z0-9_-]+$/.test(slug)) {
-    urls.push(`https://app.devin.ai/org/${encodeURIComponent(slug)}/settings/usage`);
-  }
+  const slug = await getDevinOrgSlug();
+  if (slug) urls.push(devinUsagePageUrl(slug));
   return urls;
 }
 
@@ -23,7 +83,6 @@ const AUTO_REFRESH_ALARM = "ai-usage-auto-refresh";
 const DEFAULT_AUTO_REFRESH_MINUTES = 1;
 const MIN_AUTO_REFRESH_MINUTES = 1;
 const MAX_AUTO_REFRESH_MINUTES = 120;
-const STORE_KEY = "aiUsageStore";
 const PAUSED_KEY = "aiUsagePaused";
 const LEGACY_STORAGE_KEYS = ["dashboardBaseUrl", "dashboardBaseUrls", "ingestToken", "aiUsageLastCommandId"];
 const COLLECTOR_SCRIPT_ID = "ai-usage-collector";
@@ -131,7 +190,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     if (u.hostname !== "app.devin.ai" && !u.hostname.endsWith(".devin.ai")) return;
     pathname = u.pathname || "";
     if (!/\/org\/[^/]+\//.test(pathname)) return;
-    if (!/usage/i.test(pathname)) return;
+    if (!isDevinUsagePathname(pathname)) return;
   } catch {
     return;
   }
@@ -270,24 +329,15 @@ async function openOrFocusCollectorTab(url) {
   if (isCursorUsageCollectorUrl(baseNoHash)) {
     const cursorTabs = await chrome.tabs.query({ url: "https://cursor.com/*" });
     matching = cursorTabs.find((tab) => isCursorSpendingPageUrl(tab.url));
-  } else if (isDevinUsageCollectorUrl(baseNoHash)) {
-    const slug = devinOrgSlugFromAppUrl(baseNoHash);
-    if (slug) {
-      const devinTabs = await chrome.tabs.query({ url: "https://app.devin.ai/org/*" });
-      matching = devinTabs.find((tab) => devinOrgSlugFromAppUrl(tab.url ?? "") === slug);
-    }
+  } else if (devinOrgSlugFromAppUrl(baseNoHash)) {
+    await openOrFocusDevinCollectorTab(baseNoHash);
+    return;
   } else {
     const existing = await chrome.tabs.query({ url: `${originPattern(url)}/*` });
     matching = existing.find((tab) => tab.url?.startsWith(baseNoHash));
   }
 
   if (matching?.id) {
-    if (isDevinUsageCollectorUrl(baseNoHash)) {
-      const tabBase = (matching.url ?? "").split("#")[0];
-      if (tabBase === baseNoHash) await chrome.tabs.reload(matching.id);
-      else await chrome.tabs.update(matching.id, { url: baseNoHash, active: false });
-      return;
-    }
     await chrome.tabs.reload(matching.id);
     return;
   }
@@ -342,25 +392,47 @@ function originPattern(url) {
   return `${parsed.origin}${parsed.pathname.replace(/\/[^/]*$/, "")}`;
 }
 
+async function openOrFocusDevinCollectorTab(targetUrl) {
+  const slug = devinOrgSlugFromAppUrl(targetUrl);
+  if (!slug) return;
+
+  const allTabs = await chrome.tabs.query({});
+  const orgTabs = allTabs.filter((tab) => devinOrgSlugFromAppUrl(tab.url ?? "") === slug);
+  const usageTab = orgTabs.find((tab) => isDevinUsagePageUrl(tab.url));
+
+  if (usageTab?.id) {
+    await chrome.tabs.reload(usageTab.id);
+    return;
+  }
+
+  if (orgTabs[0]?.id) {
+    await chrome.tabs.update(orgTabs[0].id, { url: targetUrl, active: false });
+    return;
+  }
+
+  try {
+    await chrome.tabs.create({ url: targetUrl, active: false });
+  } catch (error) {
+    const message = String(error);
+    if (!message.includes("No current window")) throw error;
+
+    const normalWindows = await chrome.windows.getAll({ populate: false, windowTypes: ["normal"] }).catch(() => []);
+    if (normalWindows.length === 0) {
+      await chrome.windows.create({ url: targetUrl, focused: false });
+    } else {
+      await chrome.tabs.create({ url: targetUrl, active: false, windowId: normalWindows[0].id });
+    }
+  }
+}
+
 function devinOrgSlugFromAppUrl(tabUrl) {
   if (!tabUrl) return null;
   try {
     const u = new URL(tabUrl);
-    if (u.hostname !== "app.devin.ai") return null;
+    if (!isDevinAppHost(u.hostname)) return null;
     const m = u.pathname.match(/^\/org\/([^/]+)/);
     return m ? decodeURIComponent(m[1]) : null;
   } catch {
     return null;
-  }
-}
-
-function isDevinUsageCollectorUrl(url) {
-  try {
-    const u = new URL(url);
-    if (u.hostname !== "app.devin.ai") return false;
-    const p = (u.pathname || "").replace(/\/+$/, "") || "";
-    return /\/settings\/usage$/i.test(p);
-  } catch {
-    return false;
   }
 }

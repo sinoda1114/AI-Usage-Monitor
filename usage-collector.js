@@ -1,5 +1,5 @@
 /** Collects usage metrics only; no on-page UI (does not load i18n.js). */
-const CONTENT_BUILD = "0.4.15";
+const CONTENT_BUILD = "0.5.1";
 
 let collectorAlive = true;
 let observer = null;
@@ -22,8 +22,23 @@ window.addEventListener("unhandledrejection", (event) => {
   stopCollector("unhandled rejection: context invalidated");
 });
 
+function isExtensionContextAlive() {
+  try {
+    return Boolean(chrome?.runtime?.id);
+  } catch {
+    return false;
+  }
+}
+
 function isContextInvalidatedError(error) {
-  return String(error?.message || error || "").includes("Extension context invalidated");
+  const message = String(error?.message || error || "");
+  return (
+    message.includes("Extension context invalidated") ||
+    message.includes("Receiving end does not exist") ||
+    message.includes("Cannot read properties of undefined (reading 'sendMessage')") ||
+    message.includes("Cannot read properties of undefined (reading 'id')") ||
+    message.includes("Cannot read properties of undefined (reading 'local')")
+  );
 }
 
 function stopCollector(reason) {
@@ -35,10 +50,10 @@ function stopCollector(reason) {
 
 function isDevinUsagePath(pathname) {
   const p = (pathname || "").replace(/\/+$/, "") || "";
-  if (/\/settings\/usage$/i.test(p)) return true;
   if (/\/settings\/usage-and-limits$/i.test(p)) return true;
+  if (/\/settings\/usage$/i.test(p)) return true;
   if (/\/settings\/[^/]*usage/i.test(p)) return true;
-  if (/\/usage(?:\/limits)?$/i.test(p)) return true;
+  if (/^\/org\/[^/]+\/usage(?:-and-limits)?$/i.test(p)) return true;
   return false;
 }
 
@@ -62,13 +77,11 @@ async function resolveProvider() {
 
     if (pathSlug && isDevinUsagePath(path)) return "devin";
 
+    if (!isExtensionContextAlive()) return null;
     const { devinOrgSlug } = await chrome.storage.local.get("devinOrgSlug");
     const configured = String(devinOrgSlug ?? "").trim();
     const slug = configured || pathSlug;
     if (!slug) return null;
-
-    const seg = `/org/${slug}`;
-    if (path === seg || path.startsWith(`${seg}/`)) return "devin";
 
     const authLike = /\/auth|\/login|\/signin|\/signup/i.test(path);
     if (authLike) {
@@ -293,19 +306,15 @@ function metricsFromBars(provider) {
   }
 
   if (provider === "devin") {
-    const resetDevin = findReset(text);
+    const dailySection = parseDevinQuotaSection(text, "daily");
+    if (dailySection) {
+      pushMetric(metrics, provider, "Daily quota", dailySection.usedPercentage, dailySection.resetAt);
+    }
 
-    const daily =
-      text.match(/Daily\s+quota\s*:?\s*(\d{1,3})\s*%\s*used\b/i) ??
-      text.match(/Daily\s+quota[^0-9]{0,120}(\d{1,3})\s*%\s*used\b/i) ??
-      text.match(/日次\s*(?:クォータ|割当)?\s*:?\s*(\d{1,3})\s*%[^0-9]{0,16}(?:used|使用)/i);
-    if (daily) pushMetric(metrics, provider, "Daily quota", Number(daily[1]), resetDevin);
-
-    const weekly =
-      text.match(/Weekly\s+quota\s*:?\s*(\d{1,3})\s*%\s*used\b/i) ??
-      text.match(/Weekly\s+quota[^0-9]{0,120}(\d{1,3})\s*%\s*used\b/i) ??
-      text.match(/週次\s*(?:クォータ|割当)?\s*:?\s*(\d{1,3})\s*%[^0-9]{0,16}(?:used|使用)/i);
-    if (weekly) pushMetric(metrics, provider, "Weekly quota", Number(weekly[1]), resetDevin);
+    const weeklySection = parseDevinQuotaSection(text, "weekly");
+    if (weeklySection) {
+      pushMetric(metrics, provider, "Weekly quota", weeklySection.usedPercentage, weeklySection.resetAt);
+    }
 
     const acu =
       text.match(/\b(\d+)\s*\/\s*(\d+)\s+ACUs?\b/i) ??
@@ -317,7 +326,7 @@ function metricsFromBars(provider) {
         provider,
         "ACU",
         Math.min(100, (Number(acu[1]) / Number(acu[2])) * 100),
-        resetDevin ?? resetAt,
+        dailySection?.resetAt ?? weeklySection?.resetAt ?? resetAt,
         `${acu[1]} / ${acu[2]}`
       );
     }
@@ -388,6 +397,34 @@ function codexUsed(value, qualifier) {
   return q === "残り" || q === "remaining" ? 100 - value : value;
 }
 
+/** Devin: parse quota block so reset text does not bleed across Daily / Weekly. */
+function parseDevinQuotaSection(text, kind) {
+  const patterns =
+    kind === "daily"
+      ? [/Daily\s+quota/i, /日次\s*(?:クォータ|割当)?/i]
+      : [/Weekly\s+quota/i, /週次\s*(?:クォータ|割当)?/i];
+  let idx = -1;
+  for (const pattern of patterns) {
+    const found = text.search(pattern);
+    if (found >= 0 && (idx < 0 || found < idx)) idx = found;
+  }
+  if (idx < 0) return null;
+
+  const slice = text.slice(idx, idx + 240);
+  const pctMatch =
+    slice.match(/(\d{1,3})\s*%\s*used\b/i) ??
+    slice.match(/(\d{1,3})\s*%\s*(?:使用|利用)/i) ??
+    slice.match(/used\s*:?\s*(\d{1,3})\s*%/i) ??
+    slice.match(/(?:使用|利用)\s*:?\s*(\d{1,3})\s*%/i);
+  if (!pctMatch) return null;
+
+  const resetAt =
+    slice.match(/Resets\s+in\s+(\d+\s+hours?)/i)?.[1]?.trim() ??
+    slice.match(/Resets\s+in\s+(\d+\s+days?)/i)?.[1]?.trim() ??
+    slice.match(/Resets\s+in\s+(\d+\s+minutes?)/i)?.[1]?.trim();
+  return { usedPercentage: Number(pctMatch[1]), resetAt };
+}
+
 function providerName(provider) {
   if (provider === "cursor") return "Cursor";
   if (provider === "codex") return "Codex";
@@ -423,6 +460,10 @@ async function syncCollectorForPage() {
 
 async function sendSnapshot() {
   if (!collectorAlive) return;
+  if (!isExtensionContextAlive()) {
+    stopCollector("extension context invalidated");
+    return;
+  }
   const provider = await resolveProvider();
   if (!provider) {
     detachObserver();
@@ -446,6 +487,11 @@ async function sendSnapshot() {
         : `Collector ran on ${document.title}, but no metric matched`,
   };
 
+  if (!isExtensionContextAlive()) {
+    stopCollector("extension context invalidated");
+    return;
+  }
+
   try {
     const result = await chrome.runtime.sendMessage({
       type: "AI_USAGE_SNAPSHOT",
@@ -456,7 +502,7 @@ async function sendSnapshot() {
       return;
     }
   } catch (error) {
-    if (isContextInvalidatedError(error)) {
+    if (isContextInvalidatedError(error) || !isExtensionContextAlive()) {
       stopCollector("snapshot message rejected: context invalidated");
       return;
     }
@@ -464,27 +510,36 @@ async function sendSnapshot() {
     return;
   }
 
-  chrome.runtime
-    ?.sendMessage?.({
+  if (!isExtensionContextAlive()) {
+    stopCollector("extension context invalidated");
+    return;
+  }
+
+  try {
+    await chrome.runtime.sendMessage({
       type: "AI_USAGE_COLLECTED",
       provider,
       metricsCount: metrics.length,
       url: window.location.href,
-    })
-    ?.catch((error) => {
-      if (isContextInvalidatedError(error)) {
-        stopCollector("collected message rejected: context invalidated");
-      }
     });
+  } catch (error) {
+    if (isContextInvalidatedError(error) || !isExtensionContextAlive()) {
+      stopCollector("collected message rejected: context invalidated");
+    }
+  }
 }
 
 let timer = 0;
 function scheduleSend() {
   if (!collectorAlive) return;
+  if (!isExtensionContextAlive()) {
+    stopCollector("extension context invalidated");
+    return;
+  }
   window.clearTimeout(timer);
   timer = window.setTimeout(() => {
     void sendSnapshot().catch((error) => {
-      if (isContextInvalidatedError(error)) {
+      if (isContextInvalidatedError(error) || !isExtensionContextAlive()) {
         stopCollector("sendSnapshot rejected: context invalidated");
         return;
       }
@@ -512,16 +567,24 @@ function onNavigation() {
   void startCollector();
 }
 
-chrome.runtime.onMessage.addListener((message) => {
-  if (message?.type === "AI_USAGE_COLLECT_NOW") {
-    void startCollector();
-  }
-});
+try {
+  chrome.runtime?.onMessage?.addListener((message) => {
+    if (message?.type === "AI_USAGE_COLLECT_NOW") {
+      void startCollector();
+    }
+  });
+} catch (error) {
+  if (!isContextInvalidatedError(error)) throw error;
+}
 
-chrome.storage.onChanged.addListener((changes, areaName) => {
-  if (areaName !== "local" || !changes.devinOrgSlug) return;
-  void startCollector();
-});
+try {
+  chrome.storage?.onChanged?.addListener((changes, areaName) => {
+    if (areaName !== "local" || !changes.devinOrgSlug) return;
+    void startCollector();
+  });
+} catch (error) {
+  if (!isContextInvalidatedError(error)) throw error;
+}
 window.addEventListener("popstate", onNavigation);
 window.addEventListener("hashchange", onNavigation);
 

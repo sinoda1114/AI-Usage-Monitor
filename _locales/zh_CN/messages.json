@@ -3,22 +3,22 @@
     "message": "AI Usage Monitor"
   },
   "extDescription": {
-    "message": "Read Cursor, Codex, Claude, and optionally Devin usage pages and show metrics in the extension popup."
+    "message": "读取 Cursor、Codex、Claude 的使用量页面，可选读取 Devin 使用量页面，并在扩展弹窗中显示指标。"
   },
   "popup_refresh": {
-    "message": "Refresh"
+    "message": "刷新"
   },
   "popup_pause": {
-    "message": "Pause"
+    "message": "暂停"
   },
   "popup_resume": {
-    "message": "Resume"
+    "message": "继续"
   },
   "popup_settings": {
-    "message": "Settings"
+    "message": "设置"
   },
   "popup_lastUpdated": {
-    "message": "Last updated: $time$",
+    "message": "最后更新：$time$",
     "placeholders": {
       "time": {
         "content": "$1",
@@ -27,46 +27,46 @@
     }
   },
   "popup_modeRunning": {
-    "message": "Running"
+    "message": "运行中"
   },
   "popup_modePaused": {
-    "message": "Updates paused"
+    "message": "已暂停更新"
   },
   "popup_pausedHint": {
-    "message": "Updates are paused. Resume to restart background collection."
+    "message": "更新已暂停。点击继续以恢复后台采集。"
   },
   "popup_resetPrefix": {
-    "message": "Reset:"
+    "message": "重置："
   },
   "popup_resetDaily": {
-    "message": "Daily"
+    "message": "每天"
   },
   "popup_noMetrics": {
-    "message": "No metrics yet."
+    "message": "暂无指标。"
   },
   "popup_emptyStore": {
-    "message": "Nothing to show. Check which providers are enabled in Settings."
+    "message": "没有可显示的数据。请在设置中检查已启用的服务。"
   },
   "popup_errContextInvalidated": {
-    "message": "The extension was updated. Please reload the extension."
+    "message": "扩展已更新。请重新加载扩展。"
   },
   "popup_errStoreFailed": {
-    "message": "Failed to load usage data."
+    "message": "无法加载使用量数据。"
   },
   "popup_errPauseFailed": {
-    "message": "Failed to update pause state."
+    "message": "无法更新暂停状态。"
   },
   "popup_pausedMustResume": {
-    "message": "Updates are paused. Resume before refreshing."
+    "message": "更新已暂停。请先继续后再刷新。"
   },
   "popup_refreshing": {
-    "message": "Refreshing… Reloading in a few seconds."
+    "message": "正在刷新…几秒后将重新加载。"
   },
   "popup_errRefreshStart": {
-    "message": "Failed to start refresh."
+    "message": "无法开始刷新。"
   },
   "popup_errRefresh": {
-    "message": "Refresh failed: $detail$",
+    "message": "刷新失败：$detail$",
     "placeholders": {
       "detail": {
         "content": "$1",
@@ -75,7 +75,7 @@
     }
   },
   "popup_errLoad": {
-    "message": "Failed to load: $detail$",
+    "message": "加载失败：$detail$",
     "placeholders": {
       "detail": {
         "content": "$1",
@@ -84,7 +84,7 @@
     }
   },
   "popup_errGeneric": {
-    "message": "Error: $detail$",
+    "message": "错误：$detail$",
     "placeholders": {
       "detail": {
         "content": "$1",
@@ -93,16 +93,16 @@
     }
   },
   "options_intro": {
-    "message": "Choose which providers appear in the popup and their order. Cursor, Codex, and Claude are on by default; Devin is optional and needs your Devin org slug below. Data stays in the extension only; nothing is sent to external servers."
+    "message": "选择要在弹窗中显示的服务及顺序。默认显示 Cursor、Codex 和 Claude；Devin 为可选，请在下方填写组织 slug。数据仅保存在扩展内，不会发送到外部服务器。"
   },
   "options_languageLabel": {
-    "message": "Display language"
+    "message": "显示语言"
   },
   "options_languageHint": {
-    "message": "Choose the language for the popup and settings. “Browser default” follows your Chrome language."
+    "message": "选择弹窗和设置界面的语言。「跟随浏览器」将使用 Chrome 的语言设置。"
   },
   "options_languageAuto": {
-    "message": "Browser default"
+    "message": "跟随浏览器"
   },
   "options_languageEn": {
     "message": "English"
@@ -120,16 +120,16 @@
     "message": "Español"
   },
   "options_autoRefreshLabel": {
-    "message": "Auto-refresh interval"
+    "message": "自动刷新间隔"
   },
   "options_minutesSuffix": {
-    "message": "min"
+    "message": "分钟"
   },
   "options_presetPlaceholder": {
-    "message": "Choose a preset…"
+    "message": "选择预设…"
   },
   "options_presetMinutes": {
-    "message": "$minutes$ min",
+    "message": "$minutes$ 分钟",
     "placeholders": {
       "minutes": {
         "content": "$1",
@@ -138,52 +138,52 @@
     }
   },
   "options_autoRefreshHint": {
-    "message": "Enter an integer from 1 to 120, or pick a preset to fill the field."
+    "message": "输入 1 到 120 的整数，或选择预设填入输入框。"
   },
   "options_autoRefreshPresetAria": {
-    "message": "Apply a common interval to the input field"
+    "message": "将常用间隔填入输入框"
   },
   "options_popupSectionTitle": {
-    "message": "Popup display"
+    "message": "弹窗显示"
   },
   "options_popupSectionHint": {
-    "message": "Drag rows to reorder. Use “Show” to toggle visibility. By default only Cursor, Codex, and Claude appear; enable Devin when needed."
+    "message": "拖动行以排序。使用「显示」切换是否在弹窗中显示。默认仅显示 Cursor、Codex、Claude；需要时再启用 Devin。"
   },
   "options_devinOrgLabel": {
-    "message": "Devin organization slug"
+    "message": "Devin 组织 slug"
   },
   "options_devinOrgHint": {
-    "message": "The segment after /org/ in your Devin usage URL (example: my-org in https://app.devin.ai/org/my-org/settings/usage). Leave blank to skip collecting Devin."
+    "message": "Devin 使用量 URL 中 /org/ 后面的部分（例如 https://app.devin.ai/org/my-org/settings/usage 中的 my-org）。留空则不采集 Devin。"
   },
   "options_devinOrgPlaceholder": {
     "message": "my-org"
   },
   "options_version": {
-    "message": "Version $1$",
+    "message": "版本 $1$",
     "placeholders": {
       "1": { "content": "$1" }
     }
   },
   "options_showLabel": {
-    "message": "Show"
+    "message": "显示"
   },
   "options_save": {
-    "message": "Save"
+    "message": "保存"
   },
   "options_saved": {
-    "message": "Saved"
+    "message": "已保存"
   },
   "bg_pausedMustResume": {
-    "message": "Updates are paused. Resume before refreshing."
+    "message": "更新已暂停。请先继续后再刷新。"
   },
   "bg_errRefreshStart": {
-    "message": "Failed to start refresh."
+    "message": "无法开始刷新。"
   },
   "bg_errPauseSave": {
-    "message": "Failed to save pause state."
+    "message": "无法保存暂停状态。"
   },
   "content_metricsSaved": {
-    "message": "AI Usage Monitor: saved $count$ metric(s)",
+    "message": "AI Usage Monitor：已保存 $count$ 项指标",
     "placeholders": {
       "count": {
         "content": "$1",
@@ -192,43 +192,43 @@
     }
   },
   "content_collecting": {
-    "message": "AI Usage Monitor: collecting…"
+    "message": "AI Usage Monitor：正在采集…"
   },
   "content_devinWaiting": {
-    "message": "AI Usage Monitor: waiting for page content…"
+    "message": "AI Usage Monitor：等待页面内容…"
   },
   "content_devinWrongPage": {
-    "message": "AI Usage Monitor: open your org Usage & Limits page"
+    "message": "AI Usage Monitor：请打开组织的 Usage 页面"
   },
   "content_saveFailed": {
-    "message": "AI Usage Monitor: could not save"
+    "message": "AI Usage Monitor：保存失败"
   },
   "metric_usage": {
-    "message": "Usage"
+    "message": "使用量"
   },
   "metric_codex_five_hour": {
-    "message": "5-hour usage limit"
+    "message": "5 小时使用限额"
   },
   "metric_codex_weekly": {
-    "message": "Weekly usage limit"
+    "message": "每周使用限额"
   },
   "metric_codex_credits": {
-    "message": "Credits remaining"
+    "message": "剩余额度"
   },
   "metric_claude_current_session": {
-    "message": "Current session"
+    "message": "当前会话"
   },
   "metric_claude_weekly": {
-    "message": "Weekly limit"
+    "message": "每周限额"
   },
   "metric_claude_design": {
     "message": "Claude Design"
   },
   "metric_claude_routines": {
-    "message": "Included routine runs per day"
+    "message": "每日包含的例行运行次数"
   },
   "metric_claude_extra": {
-    "message": "Extra usage"
+    "message": "额外使用量"
   },
   "metric_cursor_total": {
     "message": "Total"
@@ -240,18 +240,18 @@
     "message": "API"
   },
   "metric_devin_acu": {
-    "message": "ACU usage"
+    "message": "ACU 使用量"
   },
   "metric_devin_credits": {
-    "message": "Credits"
+    "message": "额度"
   },
   "metric_devin_daily_quota": {
-    "message": "Daily quota"
+    "message": "每日配额"
   },
   "metric_devin_weekly_quota": {
-    "message": "Weekly quota"
+    "message": "每周配额"
   },
   "metric_devin_on_demand_balance": {
-    "message": "On-demand balance"
+    "message": "按需余额"
   }
 }
