@@ -4,8 +4,23 @@ void initI18n();
 const STATIC_USAGE_URLS = [
   "https://cursor.com/dashboard/spending",
   "https://chatgpt.com/codex/cloud/settings/analytics#usage",
-  "https://claude.ai/settings/usage",
+  "https://claude.ai/new#settings/usage",
 ];
+
+const CLAUDE_USAGE_URL = "https://claude.ai/new#settings/usage";
+
+function isClaudeUsagePageUrl(tabUrl) {
+  if (!tabUrl) return false;
+  try {
+    const u = new URL(tabUrl);
+    if (u.hostname !== "claude.ai") return false;
+    if (/\/settings\/usage/i.test(u.pathname)) return true;
+    if (/settings\/usage/i.test(u.hash || "")) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
 
 const DEVIN_ORG_SLUG_KEY = "devinOrgSlug";
 const POPUP_PROVIDER_PREFS_KEY = "popupProviderPrefs";
@@ -91,7 +106,7 @@ const COLLECTOR_MATCHES = [
   "https://cursor.com/*/dashboard/spending*",
   "https://cursor.com/dashboard/spending*",
   "https://chatgpt.com/codex/cloud/settings/analytics*",
-  "https://claude.ai/settings/usage*",
+  "https://claude.ai/*",
   "https://app.devin.ai/*",
 ];
 let latestStore = { updatedAt: null, providers: {} };
@@ -103,7 +118,7 @@ function isCollectorTabUrl(url) {
     const u = new URL(url);
     if (u.hostname.includes("cursor.com") && /\/dashboard\/spending/i.test(u.pathname)) return true;
     if (u.hostname.includes("chatgpt.com") && u.href.includes("/codex/")) return true;
-    if (u.hostname === "claude.ai" && u.pathname.includes("/settings/usage")) return true;
+    if (u.hostname === "claude.ai" && isClaudeUsagePageUrl(url)) return true;
     if (
       (u.hostname === "app.devin.ai" || u.hostname.endsWith(".devin.ai")) &&
       /\/org\/[^/]+\//.test(u.pathname)
@@ -329,6 +344,9 @@ async function openOrFocusCollectorTab(url) {
   if (isCursorUsageCollectorUrl(baseNoHash)) {
     const cursorTabs = await chrome.tabs.query({ url: "https://cursor.com/*" });
     matching = cursorTabs.find((tab) => isCursorSpendingPageUrl(tab.url));
+  } else if (url.includes("claude.ai")) {
+    await openOrFocusClaudeCollectorTab();
+    return;
   } else if (devinOrgSlugFromAppUrl(baseNoHash)) {
     await openOrFocusDevinCollectorTab(baseNoHash);
     return;
@@ -390,6 +408,30 @@ function isCursorSpendingPageUrl(tabUrl) {
 function originPattern(url) {
   const parsed = new URL(url);
   return `${parsed.origin}${parsed.pathname.replace(/\/[^/]*$/, "")}`;
+}
+
+async function openOrFocusClaudeCollectorTab() {
+  const claudeTabs = await chrome.tabs.query({ url: "https://claude.ai/*" });
+  const usageTab = claudeTabs.find((tab) => isClaudeUsagePageUrl(tab.url));
+
+  if (usageTab?.id) {
+    await chrome.tabs.reload(usageTab.id);
+    return;
+  }
+
+  try {
+    await chrome.tabs.create({ url: CLAUDE_USAGE_URL, active: false });
+  } catch (error) {
+    const message = String(error);
+    if (!message.includes("No current window")) throw error;
+
+    const normalWindows = await chrome.windows.getAll({ populate: false, windowTypes: ["normal"] }).catch(() => []);
+    if (normalWindows.length === 0) {
+      await chrome.windows.create({ url: CLAUDE_USAGE_URL, focused: false });
+    } else {
+      await chrome.tabs.create({ url: CLAUDE_USAGE_URL, active: false, windowId: normalWindows[0].id });
+    }
+  }
 }
 
 async function openOrFocusDevinCollectorTab(targetUrl) {

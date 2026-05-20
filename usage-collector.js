@@ -1,5 +1,5 @@
 /** Collects usage metrics only; no on-page UI (does not load i18n.js). */
-const CONTENT_BUILD = "0.5.2";
+const CONTENT_BUILD = "0.5.3";
 
 let collectorAlive = true;
 let observer = null;
@@ -61,6 +61,18 @@ function isDevinHost(hostname) {
   return hostname === "app.devin.ai" || hostname.endsWith(".devin.ai");
 }
 
+function isClaudeUsagePage(href) {
+  try {
+    const u = new URL(href);
+    if (u.hostname !== "claude.ai") return false;
+    if (/\/settings\/usage/i.test(u.pathname)) return true;
+    if (/settings\/usage/i.test(u.hash || "")) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 async function resolveProvider() {
   const href = window.location.href;
   try {
@@ -68,7 +80,7 @@ async function resolveProvider() {
 
     if (u.hostname.includes("cursor.com")) return "cursor";
     if (href.includes("chatgpt.com/codex")) return "codex";
-    if (href.includes("claude.ai/settings/usage")) return "claude";
+    if (isClaudeUsagePage(href)) return "claude";
 
     if (!isDevinHost(u.hostname)) return null;
 
