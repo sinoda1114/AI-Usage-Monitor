@@ -22,8 +22,23 @@ window.addEventListener("unhandledrejection", (event) => {
   stopCollector("unhandled rejection: context invalidated");
 });
 
+function isExtensionContextAlive() {
+  try {
+    return Boolean(chrome?.runtime?.id);
+  } catch {
+    return false;
+  }
+}
+
 function isContextInvalidatedError(error) {
-  return String(error?.message || error || "").includes("Extension context invalidated");
+  const message = String(error?.message || error || "");
+  return (
+    message.includes("Extension context invalidated") ||
+    message.includes("Receiving end does not exist") ||
+    message.includes("Cannot read properties of undefined (reading 'sendMessage')") ||
+    message.includes("Cannot read properties of undefined (reading 'id')") ||
+    message.includes("Cannot read properties of undefined (reading 'local')")
+  );
 }
 
 function stopCollector(reason) {
@@ -62,6 +77,7 @@ async function resolveProvider() {
 
     if (pathSlug && isDevinUsagePath(path)) return "devin";
 
+    if (!isExtensionContextAlive()) return null;
     const { devinOrgSlug } = await chrome.storage.local.get("devinOrgSlug");
     const configured = String(devinOrgSlug ?? "").trim();
     const slug = configured || pathSlug;
@@ -444,6 +460,10 @@ async function syncCollectorForPage() {
 
 async function sendSnapshot() {
   if (!collectorAlive) return;
+  if (!isExtensionContextAlive()) {
+    stopCollector("extension context invalidated");
+    return;
+  }
   const provider = await resolveProvider();
   if (!provider) {
     detachObserver();
@@ -467,6 +487,11 @@ async function sendSnapshot() {
         : `Collector ran on ${document.title}, but no metric matched`,
   };
 
+  if (!isExtensionContextAlive()) {
+    stopCollector("extension context invalidated");
+    return;
+  }
+
   try {
     const result = await chrome.runtime.sendMessage({
       type: "AI_USAGE_SNAPSHOT",
@@ -477,7 +502,7 @@ async function sendSnapshot() {
       return;
     }
   } catch (error) {
-    if (isContextInvalidatedError(error)) {
+    if (isContextInvalidatedError(error) || !isExtensionContextAlive()) {
       stopCollector("snapshot message rejected: context invalidated");
       return;
     }
@@ -485,27 +510,36 @@ async function sendSnapshot() {
     return;
   }
 
-  chrome.runtime
-    ?.sendMessage?.({
+  if (!isExtensionContextAlive()) {
+    stopCollector("extension context invalidated");
+    return;
+  }
+
+  try {
+    await chrome.runtime.sendMessage({
       type: "AI_USAGE_COLLECTED",
       provider,
       metricsCount: metrics.length,
       url: window.location.href,
-    })
-    ?.catch((error) => {
-      if (isContextInvalidatedError(error)) {
-        stopCollector("collected message rejected: context invalidated");
-      }
     });
+  } catch (error) {
+    if (isContextInvalidatedError(error) || !isExtensionContextAlive()) {
+      stopCollector("collected message rejected: context invalidated");
+    }
+  }
 }
 
 let timer = 0;
 function scheduleSend() {
   if (!collectorAlive) return;
+  if (!isExtensionContextAlive()) {
+    stopCollector("extension context invalidated");
+    return;
+  }
   window.clearTimeout(timer);
   timer = window.setTimeout(() => {
     void sendSnapshot().catch((error) => {
-      if (isContextInvalidatedError(error)) {
+      if (isContextInvalidatedError(error) || !isExtensionContextAlive()) {
         stopCollector("sendSnapshot rejected: context invalidated");
         return;
       }
@@ -533,16 +567,24 @@ function onNavigation() {
   void startCollector();
 }
 
-chrome.runtime.onMessage.addListener((message) => {
-  if (message?.type === "AI_USAGE_COLLECT_NOW") {
-    void startCollector();
-  }
-});
+try {
+  chrome.runtime?.onMessage?.addListener((message) => {
+    if (message?.type === "AI_USAGE_COLLECT_NOW") {
+      void startCollector();
+    }
+  });
+} catch (error) {
+  if (!isContextInvalidatedError(error)) throw error;
+}
 
-chrome.storage.onChanged.addListener((changes, areaName) => {
-  if (areaName !== "local" || !changes.devinOrgSlug) return;
-  void startCollector();
-});
+try {
+  chrome.storage?.onChanged?.addListener((changes, areaName) => {
+    if (areaName !== "local" || !changes.devinOrgSlug) return;
+    void startCollector();
+  });
+} catch (error) {
+  if (!isContextInvalidatedError(error)) throw error;
+}
 window.addEventListener("popstate", onNavigation);
 window.addEventListener("hashchange", onNavigation);
 
