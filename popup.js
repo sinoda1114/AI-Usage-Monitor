@@ -202,19 +202,19 @@ function normalizeResetValue(rawValue) {
 
   const hourMinuteAfter =
     value.match(/(\d+)\s*時間\s*(\d+)\s*分後/) ??
-    value.match(/(\d+)\s*hours?\s*(\d+)\s*minutes?\s*later/i);
+    value.match(/(\d+)\s*hours?\s*(\d+)\s*minutes?(?:\s*later)?$/i);
   if (hourMinuteAfter) {
     const date = new Date(
       Date.now() + Number(hourMinuteAfter[1]) * 3600000 + Number(hourMinuteAfter[2]) * 60000
     );
     return formatResetDateTime(date);
   }
-  const hourAfter = value.match(/(\d+)\s*時間後/) ?? value.match(/(\d+)\s*hours?\s*later/i);
+  const hourAfter = value.match(/(\d+)\s*時間後/) ?? value.match(/(\d+)\s*hours?(?:\s*later)?$/i);
   if (hourAfter) {
     const date = new Date(Date.now() + Number(hourAfter[1]) * 3600000);
     return formatResetDateTime(date);
   }
-  const minuteAfter = value.match(/(\d+)\s*分後/) ?? value.match(/(\d+)\s*minutes?\s*later/i);
+  const minuteAfter = value.match(/(\d+)\s*分後/) ?? value.match(/(\d+)\s*minutes?(?:\s*later)?$/i);
   if (minuteAfter) {
     const date = new Date(Date.now() + Number(minuteAfter[1]) * 60000);
     return formatResetDateTime(date);
@@ -229,7 +229,7 @@ function normalizeResetValue(rawValue) {
     return formatResetDateTime(candidate);
   }
 
-  const daysAfter = value.match(/^(\d+)\s*日後/) ?? value.match(/^(\d+)\s*days?\s*later/i);
+  const daysAfter = value.match(/^(\d+)\s*日後/) ?? value.match(/^(\d+)\s*days?(?:\s*later)?$/i);
   if (daysAfter) {
     const date = new Date(Date.now() + Number(daysAfter[1]) * 86400000);
     date.setHours(0, 0, 0, 0);
