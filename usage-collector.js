@@ -83,6 +83,8 @@ async function resolveProvider() {
     const slug = configured || pathSlug;
     if (!slug) return null;
 
+    const seg = `/org/${slug}`;
+
     const authLike = /\/auth|\/login|\/signin|\/signup/i.test(path);
     if (authLike) {
       const keys = ["redirect", "next", "returnUrl", "return_url"];
