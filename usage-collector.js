@@ -84,7 +84,6 @@ async function resolveProvider() {
     if (!slug) return null;
 
     const seg = `/org/${slug}`;
-    if (path === seg || path.startsWith(seg + "/")) return "devin";
 
     const authLike = /\/auth|\/login|\/signin|\/signup/i.test(path);
     if (authLike) {
