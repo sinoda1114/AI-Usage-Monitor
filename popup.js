@@ -149,6 +149,34 @@ function normalizeResetValue(rawValue) {
 
   if (/毎日|daily/i.test(value)) return t("popup_resetDaily");
 
+  const bareRelative = value.match(/^(\d+)\s+(minutes?|hours?|days?)$/i);
+  if (bareRelative) {
+    const n = bareRelative[1];
+    const unit = bareRelative[2].toLowerCase();
+    const loc = typeof uiLocale === "function" ? uiLocale() : "en";
+    if (loc === "ja") {
+      if (unit.startsWith("minute")) return `${n} 分`;
+      if (unit.startsWith("hour")) return `${n} 時間`;
+      if (unit.startsWith("day")) return `${n} 日`;
+    }
+    if (loc === "zh_CN") {
+      if (unit.startsWith("minute")) return `${n} 分钟`;
+      if (unit.startsWith("hour")) return `${n} 小时`;
+      if (unit.startsWith("day")) return `${n} 天`;
+    }
+    if (loc === "ko") {
+      if (unit.startsWith("minute")) return `${n}분`;
+      if (unit.startsWith("hour")) return `${n}시간`;
+      if (unit.startsWith("day")) return `${n}일`;
+    }
+    if (loc === "es") {
+      if (unit.startsWith("minute")) return `${n} min`;
+      if (unit.startsWith("hour")) return `${n} h`;
+      if (unit.startsWith("day")) return `${n} días`;
+    }
+    return `${n} ${bareRelative[2]}`;
+  }
+
   const fullDate = value.match(/^(\d{4})\/(\d{2})\/(\d{2})(?:\s+(\d{1,2}):(\d{2}))?$/);
   if (fullDate) {
     const y = Number(fullDate[1]);

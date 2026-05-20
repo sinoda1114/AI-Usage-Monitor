@@ -1,5 +1,5 @@
 /** Collects usage metrics only; no on-page UI (does not load i18n.js). */
-const CONTENT_BUILD = "0.5.1";
+const CONTENT_BUILD = "0.5.2";
 
 let collectorAlive = true;
 let observer = null;
@@ -420,10 +420,7 @@ function parseDevinQuotaSection(text, kind) {
     slice.match(/(?:使用|利用)\s*:?\s*(\d{1,3})\s*%/i);
   if (!pctMatch) return null;
 
-  const resetAt =
-    slice.match(/Resets\s+in\s+(\d+\s+hours?)/i)?.[1]?.trim() ??
-    slice.match(/Resets\s+in\s+(\d+\s+days?)/i)?.[1]?.trim() ??
-    slice.match(/Resets\s+in\s+(\d+\s+minutes?)/i)?.[1]?.trim();
+  const resetAt = slice.match(/Resets\s+in\s+(\d+\s+(?:minutes?|hours?|days?))/i)?.[1]?.trim();
   return { usedPercentage: Number(pctMatch[1]), resetAt };
 }
 

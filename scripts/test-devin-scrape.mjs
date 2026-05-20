@@ -13,6 +13,10 @@ const SAMPLE_TEXT_USER =
   "Your included usage Daily quota 36% used Resets in 8 hours " +
   "Weekly quota 18% used Resets in 6 days On-demand usage Remaining balance $-0.10";
 
+const SAMPLE_TEXT_MINUTES_DAYS =
+  "Your included usage Daily quota 10% used Resets in 53 minutes " +
+  "Weekly quota 30% used Resets in 4 days On-demand usage Remaining balance $-0.10";
+
 function parseDevinQuotaSection(text, kind) {
   const patterns =
     kind === "daily"
@@ -30,10 +34,7 @@ function parseDevinQuotaSection(text, kind) {
     slice.match(/(\d{1,3})\s*%\s*(?:使用|利用)/i) ??
     slice.match(/used\s*:?\s*(\d{1,3})\s*%/i);
   if (!pctMatch) return null;
-  const resetAt =
-    slice.match(/Resets\s+in\s+(\d+\s+hours?)/i)?.[1]?.trim() ??
-    slice.match(/Resets\s+in\s+(\d+\s+days?)/i)?.[1]?.trim() ??
-    slice.match(/Resets\s+in\s+(\d+\s+minutes?)/i)?.[1]?.trim();
+  const resetAt = slice.match(/Resets\s+in\s+(\d+\s+(?:minutes?|hours?|days?))/i)?.[1]?.trim();
   return { usedPercentage: Number(pctMatch[1]), resetAt };
 }
 
@@ -161,6 +162,19 @@ if (userDaily?.usedPercentage !== 36 || userWeekly?.usedPercentage !== 18) {
   failed++;
 } else {
   console.log("OK scrape user sample: daily=36%/8h, weekly=18%/6d");
+}
+
+const mdSample = devinMetricsFromText(SAMPLE_TEXT_MINUTES_DAYS);
+const mdDaily = mdSample.find((m) => m.id === "devin-daily-quota");
+const mdWeekly = mdSample.find((m) => m.id === "devin-weekly-quota");
+if (mdDaily?.usedPercentage !== 10 || mdWeekly?.usedPercentage !== 30) {
+  console.error("FAIL scrape minutes/days sample percentages", mdSample);
+  failed++;
+} else if (mdDaily.resetAt !== "53 minutes" || mdWeekly.resetAt !== "4 days") {
+  console.error("FAIL scrape minutes/days resets", mdDaily, mdWeekly);
+  failed++;
+} else {
+  console.log("OK scrape minutes/days: daily=10%/53m, weekly=30%/4d");
 }
 
 const url = "https://app.devin.ai/org/my-org/settings/usage";
