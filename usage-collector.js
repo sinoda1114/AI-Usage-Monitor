@@ -178,7 +178,7 @@ function findCursorReset(text) {
 
 function metricId(provider, label) {
   if (provider === "codex" && /5\s*時間|5[-\s]*hour/i.test(label)) return "codex-five-hour";
-  if (provider === "codex" && /週あたり|weekly/i.test(label)) return "codex-weekly";
+  if (provider === "codex" && /週あたり|週間|weekly/i.test(label)) return "codex-weekly";
   if (provider === "claude" && /現在のセッション|current session/i.test(label)) return "claude-current-session";
   if (provider === "claude" && /週間制限|weekly|すべてのモデル/i.test(label)) return "claude-weekly";
   if (provider === "claude" && /ルーティン|routine/i.test(label)) return "claude-routines";
@@ -246,13 +246,19 @@ function metricsFromBars(provider) {
 
     const weekly =
       text.match(
-        /週あたりの使用制限\s+(\d{1,3})\s*%\s*(残り|使用済み)?[^リ]*(?:リセット[:：]\s*([^\s]+(?:\s+[^\s]+)?))?/i
+        /週(?:あたりの使用制限|間利用上限|間の使用制限)\s+(\d{1,3})\s*%\s*(残り|使用済み)?[^リ]*(?:リセット[:：]\s*([^\s]+(?:\s+[^\s]+)?))?/i
       ) ??
       text.match(
         /weekly\s+(?:usage\s+)?limit[^0-9]{0,48}(\d{1,3})\s*%\s*(remaining|used)?[^.]{0,48}(?:reset(?:s)?(?:\s+on)?[:：]?\s*([^\s,.|]+(?:\s+[^\s,.|]+)?))?/i
       );
     if (weekly) {
-      const label = /週あたり/.test(text) ? "週あたりの使用制限" : "Weekly usage limit";
+      const label = /週間利用上限/.test(text)
+        ? "週間利用上限"
+        : /週間の使用制限/.test(text)
+          ? "週間の使用制限"
+          : /週あたり/.test(text)
+            ? "週あたりの使用制限"
+            : "Weekly usage limit";
       pushMetric(metrics, provider, label, codexUsed(Number(weekly[1]), weekly[2]), weekly[3] ?? resetAt);
     }
 

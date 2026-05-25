@@ -1,11 +1,11 @@
 importScripts("i18n.js");
 void initI18n();
 
-const STATIC_USAGE_URLS = [
-  "https://cursor.com/dashboard/spending",
-  "https://chatgpt.com/codex/cloud/settings/analytics#usage",
-  "https://claude.ai/new#settings/usage",
-];
+const STATIC_USAGE_URL_BY_PROVIDER = {
+  cursor: "https://cursor.com/dashboard/spending",
+  codex: "https://chatgpt.com/codex/cloud/settings/analytics#usage",
+  claude: "https://claude.ai/new#settings/usage",
+};
 
 const CLAUDE_USAGE_URL = "https://claude.ai/new#settings/usage";
 
@@ -87,10 +87,25 @@ async function getDevinOrgSlug() {
   return slug;
 }
 
+function isProviderHiddenFromPrefs(prefs, provider) {
+  return prefs?.[provider]?.visible === false;
+}
+
 async function getCollectorUrls() {
-  const urls = [...STATIC_USAGE_URLS];
-  const slug = await getDevinOrgSlug();
-  if (slug) urls.push(devinUsagePageUrl(slug));
+  const stored = await chrome.storage.local.get(POPUP_PROVIDER_PREFS_KEY);
+  const prefs = stored[POPUP_PROVIDER_PREFS_KEY] || {};
+  const urls = [];
+
+  for (const [provider, url] of Object.entries(STATIC_USAGE_URL_BY_PROVIDER)) {
+    if (isProviderHiddenFromPrefs(prefs, provider)) continue;
+    urls.push(url);
+  }
+
+  if (!isProviderHiddenFromPrefs(prefs, "devin")) {
+    const slug = await getDevinOrgSlug();
+    if (slug) urls.push(devinUsagePageUrl(slug));
+  }
+
   return urls;
 }
 
