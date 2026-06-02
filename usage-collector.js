@@ -1,5 +1,5 @@
 /** Collects usage metrics only; no on-page UI (does not load i18n.js). */
-const CONTENT_BUILD = "0.5.3";
+const CONTENT_BUILD = "0.5.4";
 
 let collectorAlive = true;
 let observer = null;
@@ -279,24 +279,14 @@ function metricsFromBars(provider) {
   }
 
   if (provider === "claude") {
-    const current =
-      text.match(/現在のセッション\s+([^%]{0,160}?)(\d{1,3})\s*%\s*使用済み/i) ??
-      text.match(/current session\s+([^%]{0,160}?)(\d{1,3})\s*%\s*(?:used|使用)/i);
-    if (current) pushMetric(metrics, provider, "現在のセッション", Number(current[2]), resetFromSection(current[1]) ?? null);
+    const current = parseClaudeSection(text, [/現在のセッション/, /current session/i]);
+    if (current) pushMetric(metrics, provider, "現在のセッション", current.usedPercentage, current.resetAt ?? null);
 
-    const weekly =
-      text.match(/週間制限\s+([^%]{0,220}?)(\d{1,3})\s*%\s*使用済み/i) ??
-      text.match(/すべてのモデル\s+([^%]{0,160}?)(\d{1,3})\s*%\s*使用済み/i) ??
-      text.match(/weekly\s+([^%]{0,180}?)(\d{1,3})\s*%\s*(?:used|使用)/i);
-    if (weekly) pushMetric(metrics, provider, "週間制限", Number(weekly[2]), resetFromSection(weekly[1]) ?? resetAt);
+    const weekly = parseClaudeSection(text, [/週間制限/, /すべてのモデル/, /weekly/i]);
+    if (weekly) pushMetric(metrics, provider, "週間制限", weekly.usedPercentage, weekly.resetAt ?? null);
 
-    const claudeDesign =
-      text.match(/Claude\s*Design\s+([^%]{0,220}?)(\d{1,3})\s*%\s*(?:使用済み|used|使用)/i) ??
-      text.match(/Claude\s*Design([^%]{0,220}?)(\d{1,3})\s*%\s*(?:使用済み|used|使用)/i);
-    if (claudeDesign) {
-      const usedPercentage = Number(claudeDesign[2]);
-      pushMetric(metrics, provider, "Claude Design", usedPercentage, resetFromSection(claudeDesign[1]));
-    }
+    const claudeDesign = parseClaudeSection(text, [/Claude\s*Design/i]);
+    if (claudeDesign) pushMetric(metrics, provider, "Claude Design", claudeDesign.usedPercentage, claudeDesign.resetAt ?? null);
 
     const routines =
       text.match(/(?:ルーティン実行数|routine runs?)[^0-9]{0,80}(\d+)\s*\/\s*(\d+)/i) ??
@@ -317,10 +307,8 @@ function metricsFromBars(provider) {
       );
     }
 
-    const extra =
-      text.match(/追加使用量\s+([^%]{0,220}?)(\d{1,3})\s*%\s*(?:使用|used)/i) ??
-      text.match(/extra usage\s+([^%]{0,220}?)(\d{1,3})\s*%\s*(?:used|使用)/i);
-    if (extra) pushMetric(metrics, provider, "追加使用量", Number(extra[2]), resetFromSection(extra[1]));
+    const extra = parseClaudeSection(text, [/追加使用量/, /extra usage/i]);
+    if (extra) pushMetric(metrics, provider, "追加使用量", extra.usedPercentage, extra.resetAt ?? null);
 
     if (metrics.length > 0) return metrics;
   }
@@ -396,9 +384,30 @@ function metricsFromBars(provider) {
   return metrics.slice(0, 10);
 }
 
+/**
+ * Claude: slice from a section heading to its own percentage and read the reset
+ * text that follows it, so reset times never bleed across sibling sections.
+ */
+function parseClaudeSection(text, patterns) {
+  let idx = -1;
+  for (const pattern of patterns) {
+    const found = text.search(pattern);
+    if (found >= 0 && (idx < 0 || found < idx)) idx = found;
+  }
+  if (idx < 0) return null;
+
+  const slice = text.slice(idx, idx + 260);
+  const pct = slice.match(/(\d{1,3})\s*%\s*(?:使用済み|used|使用)/i);
+  if (!pct) return null;
+
+  const after = slice.slice(pct.index + pct[0].length).split(/\d{1,3}\s*%/)[0];
+  return { usedPercentage: Number(pct[1]), resetAt: resetFromSection(after) };
+}
+
 function resetFromSection(section) {
   if (!section) return undefined;
   return (
+    section.match(/(\d{1,2}\s*月\s*\d{1,2}\s*日(?:\s*\([^)]*\))?\s*にリセット)/)?.[1]?.trim() ??
     section.match(/(\d+\s*時間\s*\d+\s*分後にリセット)/)?.[1]?.trim() ??
     section.match(/(\d+\s*時間後にリセット)/)?.[1]?.trim() ??
     section.match(/(\d+\s*分後にリセット)/)?.[1]?.trim() ??

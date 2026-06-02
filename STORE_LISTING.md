@@ -173,7 +173,7 @@ python scripts/package-store-zip.py
 
 `releases/ai-usage-monitor-store-v<version>.zip` が出力されます（`<version>` は `manifest.json` と同じ）。
 
-**リポジトリ同梱の申請用 ZIP（例）:** `releases/ai-usage-monitor-store-v0.5.1.zip`
+**リポジトリ同梱の申請用 ZIP（例）:** `releases/ai-usage-monitor-store-v0.5.4.zip`
 
 ### PowerShell（手動で ZIP するとき）
 
