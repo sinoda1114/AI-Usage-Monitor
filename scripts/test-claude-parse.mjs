@@ -65,6 +65,13 @@ const cases = [
       "追加使用量 5% 使用 今月",
   },
   {
+    name: "日本語 UI（リセットがパーセントの前に出る設定画面）",
+    text:
+      "プラン使用制限 Max (5x) " +
+      "現在のセッション 2時間29分後にリセット 22% 使用済み " +
+      "週間制限 使用制限について詳しく見る すべてのモデル 0:59 (日)にリセット 71% 使用済み",
+  },
+  {
     name: "英語 UI（current session + weekly + extra usage）",
     text:
       "Usage current session 67% used Resets in 2 hours later " +
@@ -89,6 +96,16 @@ const expectations = {
     if (weekly?.usedPercentage !== 18) problems.push("weekly% != 18");
     if (weekly?.resetAt !== "11月8日 にリセット") problems.push(`weekly reset bad: ${weekly?.resetAt}`);
     if (extra?.resetAt) problems.push(`extra should have no reset, got: ${extra.resetAt}`);
+    return problems;
+  },
+  "日本語 UI（リセットがパーセントの前に出る設定画面）": (metrics) => {
+    const current = metrics.find((m) => m.id === "claude-current-session");
+    const weekly = metrics.find((m) => m.id === "claude-weekly");
+    const problems = [];
+    if (current?.usedPercentage !== 22) problems.push("current% != 22");
+    if (current?.resetAt !== "2時間29分後にリセット") problems.push(`current reset bad: ${current?.resetAt}`);
+    if (weekly?.usedPercentage !== 71) problems.push("weekly% != 71");
+    if (weekly?.resetAt !== "0:59 (日)にリセット") problems.push(`weekly reset bad: ${weekly?.resetAt}`);
     return problems;
   },
   "英語 UI（current session + weekly + extra usage）": (metrics) => {

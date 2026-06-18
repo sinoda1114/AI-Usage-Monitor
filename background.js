@@ -127,6 +127,10 @@ const COLLECTOR_MATCHES = [
 let latestStore = { updatedAt: null, providers: {} };
 const COLLECTOR_VERSION_KEY = "collectorScriptVersion";
 
+function logBackgroundError(context, error) {
+  console.warn(`[AI Usage Monitor] ${context}`, error);
+}
+
 function isCollectorTabUrl(url) {
   if (!url) return false;
   try {
@@ -186,11 +190,11 @@ async function onExtensionReady() {
   await registerCollectorContentScript().catch(() => {});
   await reloadCollectorTabsIfVersionChanged();
   await initAutoRefreshAlarm();
-  await refreshAllUsagePages();
+  await refreshAllUsagePages().catch((error) => logBackgroundError("initial refresh failed", error));
 }
 
 chrome.runtime.onInstalled.addListener(() => {
-  void onExtensionReady();
+  void onExtensionReady().catch((error) => logBackgroundError("extension ready failed", error));
 });
 
 void getLocalUsageStore()
@@ -203,8 +207,8 @@ chrome.runtime.onStartup.addListener(() => {
   void (async () => {
     await registerCollectorContentScript().catch(() => {});
     void initAutoRefreshAlarm();
-    void refreshAllUsagePages();
-  })();
+    void refreshAllUsagePages().catch((error) => logBackgroundError("startup refresh failed", error));
+  })().catch((error) => logBackgroundError("startup handler failed", error));
 });
 
 chrome.storage.onChanged.addListener((changes, areaName) => {
@@ -214,6 +218,10 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status !== "complete" || !tab.url) return;
+  if (isCollectorTabUrl(tab.url)) {
+    void chrome.tabs.sendMessage(tabId, { type: "AI_USAGE_COLLECT_NOW" }).catch(() => {});
+  }
+
   let pathname = "";
   try {
     const u = new URL(tab.url);
@@ -252,7 +260,7 @@ async function initAutoRefreshAlarm() {
 
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === AUTO_REFRESH_ALARM) {
-    void refreshAllUsagePages();
+    void refreshAllUsagePages().catch((error) => logBackgroundError("alarm refresh failed", error));
   }
 });
 
@@ -321,6 +329,14 @@ async function getLocalUsageStore() {
 async function saveLocalSnapshot(snapshot) {
   if (!snapshot?.provider) return getLocalUsageStore();
   const current = await getLocalUsageStore();
+  const currentProvider = current.providers?.[snapshot.provider];
+  const hasMetrics = Array.isArray(snapshot.metrics) && snapshot.metrics.length > 0;
+  const currentHasMetrics = Array.isArray(currentProvider?.metrics) && currentProvider.metrics.length > 0;
+  if (!hasMetrics && currentHasMetrics) {
+    latestStore = current;
+    return current;
+  }
+
   const next = {
     updatedAt: new Date().toISOString(),
     providers: {
@@ -337,7 +353,11 @@ async function refreshAllUsagePages() {
   if (await isPaused()) return false;
   const urls = await getCollectorUrls();
   for (const url of urls) {
-    await openOrFocusCollectorTab(url);
+    try {
+      await openOrFocusCollectorTab(url);
+    } catch (error) {
+      logBackgroundError(`refresh failed for ${url}`, error);
+    }
   }
   return true;
 }

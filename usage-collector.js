@@ -1,5 +1,5 @@
 /** Collects usage metrics only; no on-page UI (does not load i18n.js). */
-const CONTENT_BUILD = "0.5.4";
+const CONTENT_BUILD = "0.5.5";
 
 let collectorAlive = true;
 let observer = null;
@@ -208,6 +208,11 @@ function pushMetric(metrics, provider, label, usedPercentage, resetAt, detail) {
   });
 }
 
+function codexUsedPercentage(value, qualifier) {
+  const q = String(qualifier || "").toLowerCase();
+  return q === "残り" || q === "remaining" ? 100 - value : value;
+}
+
 function metricsFromBars(provider) {
   const metrics = [];
   const text = compactText();
@@ -234,19 +239,25 @@ function metricsFromBars(provider) {
   if (provider === "codex") {
     const fiveHour =
       text.match(
-        /5\s*時間の使用制限\s+(\d{1,3})\s*%\s*(残り|使用済み)?[^リ]*(?:リセット[:：]\s*([^\s]+))?/i
+        /5\s*時間の使用制限\s+(\d{1,3})\s*%\s*(残り|使用済み)?[^リ]*(?:リセット[:：]\s*((?:\d{4}\/\d{2}\/\d{2}\s+)?\d{1,2}:\d{2}))?/i
       ) ??
       text.match(
-        /5[-\s]*hour(?:ly)?\s+(?:usage\s+)?limit[^0-9]{0,48}(\d{1,3})\s*%\s*(remaining|used)?[^.]{0,48}(?:reset(?:s)?(?:\s+on)?[:：]?\s*([^\s,.|]+))?/i
+        /5[-\s]*hour(?:ly)?\s+(?:usage\s+)?limit[^0-9]{0,48}(\d{1,3})\s*%\s*(remaining|used)?[^.]{0,48}(?:reset(?:s)?(?:\s+on)?[:：]?\s*([^\s,.|]+(?:\s+[^\s,.|]+)?))?/i
       );
     if (fiveHour) {
       const label = /5\s*時間/.test(text) ? "5時間の使用制限" : "5-hour usage limit";
-      pushMetric(metrics, provider, label, codexUsed(Number(fiveHour[1]), fiveHour[2]), fiveHour[3] ?? resetAt);
+      pushMetric(
+        metrics,
+        provider,
+        label,
+        codexUsedPercentage(Number(fiveHour[1]), fiveHour[2]),
+        fiveHour[3] ?? resetAt
+      );
     }
 
     const weekly =
       text.match(
-        /週(?:あたりの使用制限|間利用上限|間の使用制限)\s+(\d{1,3})\s*%\s*(残り|使用済み)?[^リ]*(?:リセット[:：]\s*([^\s]+(?:\s+[^\s]+)?))?/i
+        /週(?:あたりの使用制限|間利用上限|間の使用制限)\s+(\d{1,3})\s*%\s*(残り|使用済み)?[^リ]*(?:リセット[:：]\s*((?:\d{4}\/\d{2}\/\d{2}\s+)?\d{1,2}:\d{2}))?/i
       ) ??
       text.match(
         /weekly\s+(?:usage\s+)?limit[^0-9]{0,48}(\d{1,3})\s*%\s*(remaining|used)?[^.]{0,48}(?:reset(?:s)?(?:\s+on)?[:：]?\s*([^\s,.|]+(?:\s+[^\s,.|]+)?))?/i
@@ -259,7 +270,13 @@ function metricsFromBars(provider) {
           : /週あたり/.test(text)
             ? "週あたりの使用制限"
             : "Weekly usage limit";
-      pushMetric(metrics, provider, label, codexUsed(Number(weekly[1]), weekly[2]), weekly[3] ?? resetAt);
+      pushMetric(
+        metrics,
+        provider,
+        label,
+        codexUsedPercentage(Number(weekly[1]), weekly[2]),
+        weekly[3] ?? resetAt
+      );
     }
 
     const credits =
@@ -386,7 +403,9 @@ function metricsFromBars(provider) {
 
 /**
  * Claude: slice from a section heading to its own percentage and read the reset
- * text that follows it, so reset times never bleed across sibling sections.
+ * text nearest that percentage. Claude often renders reset text before the bar
+ * percentage, so prefer text before the percentage to avoid bleeding from the
+ * next sibling section.
  */
 function parseClaudeSection(text, patterns) {
   let idx = -1;
@@ -400,8 +419,9 @@ function parseClaudeSection(text, patterns) {
   const pct = slice.match(/(\d{1,3})\s*%\s*(?:使用済み|used|使用)/i);
   if (!pct) return null;
 
+  const before = slice.slice(0, pct.index);
   const after = slice.slice(pct.index + pct[0].length).split(/\d{1,3}\s*%/)[0];
-  return { usedPercentage: Number(pct[1]), resetAt: resetFromSection(after) };
+  return { usedPercentage: Number(pct[1]), resetAt: resetFromSection(before) ?? resetFromSection(after) };
 }
 
 function resetFromSection(section) {
@@ -419,11 +439,6 @@ function resetFromSection(section) {
     section.match(/([A-Z][a-z]{2}\s+\d{1,2})/)?.[1]?.trim() ??
     section.match(/([0-9]{4}\/[0-9]{2}\/[0-9]{2}\s+[0-9]{1,2}:[0-9]{2})/)?.[1]?.trim()
   );
-}
-
-function codexUsed(value, qualifier) {
-  const q = String(qualifier || "").toLowerCase();
-  return q === "残り" || q === "remaining" ? 100 - value : value;
 }
 
 /** Devin: parse quota block so reset text does not bleed across Daily / Weekly. */
@@ -581,10 +596,23 @@ function scheduleDevinRetries() {
   }
 }
 
+function scheduleCursorRetries(provider) {
+  if (provider !== "cursor") return;
+  for (const delay of [800, 2000, 5000, 10000]) {
+    window.setTimeout(() => scheduleSend(), delay);
+  }
+}
+
 async function startCollector() {
   if (!document.body) return;
+  const provider = await resolveProvider();
+  if (!provider) {
+    detachObserver();
+    return;
+  }
   if (await syncCollectorForPage()) {
     scheduleSend();
+    scheduleCursorRetries(provider);
     scheduleDevinRetries();
   }
 }

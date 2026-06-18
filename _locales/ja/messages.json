@@ -210,13 +210,13 @@
     "message": "5時間の使用制限"
   },
   "metric_codex_weekly": {
-    "message": "週あたりの使用制限"
+    "message": "週間制限"
   },
   "metric_codex_credits": {
     "message": "残りのクレジット"
   },
   "metric_claude_current_session": {
-    "message": "現在のセッション"
+    "message": "5時間の使用制限"
   },
   "metric_claude_weekly": {
     "message": "週間制限"

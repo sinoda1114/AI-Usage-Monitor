@@ -107,6 +107,12 @@ function formatDateTime(value) {
   }).format(date);
 }
 
+function weekdayLabel(date) {
+  const locale = typeof uiLocale === "function" ? uiLocale() : "en";
+  if (locale === "ja") return ["日", "月", "火", "水", "木", "金", "土"][date.getDay()];
+  return new Intl.DateTimeFormat(locale, { weekday: "short" }).format(date);
+}
+
 function escapeHtml(value) {
   return String(value)
     .replace(/&/g, "&amp;")
@@ -116,8 +122,59 @@ function escapeHtml(value) {
     .replace(/'/g, "&#39;");
 }
 
-function formatResetDateTime(date) {
+function resetDisplayMode(metric) {
+  const id = String(metric?.id || "");
+  if (id.startsWith("cursor-")) return "date";
+  if (["codex-five-hour", "claude-current-session", "devin-daily-quota"].includes(id)) return "time";
+  if (["codex-weekly", "claude-weekly", "devin-weekly-quota"].includes(id)) return "date";
+  return "datetime";
+}
+
+function formatResetTime(date) {
+  const h = String(date.getHours()).padStart(2, "0");
+  const min = String(date.getMinutes()).padStart(2, "0");
+  return `${h}:${min}`;
+}
+
+function formatResetDate(date) {
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${m}/${d}(${weekdayLabel(date)})`;
+}
+
+function weekdayIndexFromLabel(label) {
+  const value = String(label || "").trim().toLowerCase();
+  const ja = ["日", "月", "火", "水", "木", "金", "土"];
+  const jaIdx = ja.indexOf(value);
+  if (jaIdx >= 0) return jaIdx;
+  const en = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+  return en.findIndex((day) => value.startsWith(day));
+}
+
+function nextDateForWeekday(hour, minute, weekdayLabelValue) {
+  const targetDay = weekdayIndexFromLabel(weekdayLabelValue);
+  if (targetDay < 0) return null;
+  const now = new Date();
+  const candidate = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+    Number(hour),
+    Number(minute),
+    0,
+    0
+  );
+  let delta = (targetDay - candidate.getDay() + 7) % 7;
+  if (delta === 0 && candidate <= now) delta = 7;
+  candidate.setDate(candidate.getDate() + delta);
+  return candidate;
+}
+
+function formatResetDateTime(date, metric) {
   if (!date || Number.isNaN(date.getTime())) return "";
+  const mode = resetDisplayMode(metric);
+  if (mode === "time") return formatResetTime(date);
+  if (mode === "date") return formatResetDate(date);
   const m = String(date.getMonth() + 1).padStart(2, "0");
   const d = String(date.getDate()).padStart(2, "0");
   const h = String(date.getHours()).padStart(2, "0");
@@ -125,7 +182,7 @@ function formatResetDateTime(date) {
   return `${m}/${d} ${h}:${min}`;
 }
 
-function normalizeResetValue(rawValue) {
+function normalizeResetValue(rawValue, metric) {
   let value = String(rawValue || "").trim();
   if (!value) return "";
 
@@ -144,15 +201,22 @@ function normalizeResetValue(rawValue) {
     const day = Number(jaMonthDay[2]);
     let candidate = new Date(now.getFullYear(), mo, day, 0, 0, 0, 0);
     if (candidate < now) candidate = new Date(now.getFullYear() + 1, mo, day, 0, 0, 0, 0);
-    return formatResetDateTime(candidate);
+    return formatResetDateTime(candidate, metric);
   }
 
   if (/毎日|daily/i.test(value)) return t("popup_resetDaily");
 
   const bareRelative = value.match(/^(\d+)\s+(minutes?|hours?|days?)$/i);
   if (bareRelative) {
-    const n = bareRelative[1];
+    const n = Number(bareRelative[1]);
     const unit = bareRelative[2].toLowerCase();
+    if (unit.startsWith("minute") || unit.startsWith("hour") || unit.startsWith("day")) {
+      const millis =
+        unit.startsWith("minute") ? n * 60000 : unit.startsWith("hour") ? n * 3600000 : n * 86400000;
+      const date = new Date(Date.now() + millis);
+      if (unit.startsWith("day")) date.setHours(0, 0, 0, 0);
+      return formatResetDateTime(date, metric);
+    }
     const loc = typeof uiLocale === "function" ? uiLocale() : "en";
     if (loc === "ja") {
       if (unit.startsWith("minute")) return `${n} 分`;
@@ -184,7 +248,7 @@ function normalizeResetValue(rawValue) {
     const day = Number(fullDate[3]);
     const hh = fullDate[4] != null ? Number(fullDate[4]) : 0;
     const mm = fullDate[5] != null ? Number(fullDate[5]) : 0;
-    return formatResetDateTime(new Date(y, mo, day, hh, mm, 0, 0));
+    return formatResetDateTime(new Date(y, mo, day, hh, mm, 0, 0), metric);
   }
 
   const shortDate = value.match(/^(\d{1,2})\/(\d{1,2})(?:\s+(\d{1,2}):(\d{2}))?$/);
@@ -198,7 +262,7 @@ function normalizeResetValue(rawValue) {
     if (candidate < now && shortDate[3] == null) {
       candidate = new Date(now.getFullYear() + 1, mo, day, hh, mm, 0, 0);
     }
-    return formatResetDateTime(candidate);
+    return formatResetDateTime(candidate, metric);
   }
 
   const monthMap = {
@@ -224,7 +288,7 @@ function normalizeResetValue(rawValue) {
       const day = Number(englishDate[2]);
       let candidate = new Date(now.getFullYear(), mo, day, 0, 0, 0, 0);
       if (candidate < now) candidate = new Date(now.getFullYear() + 1, mo, day, 0, 0, 0, 0);
-      return formatResetDateTime(candidate);
+      return formatResetDateTime(candidate, metric);
     }
   }
 
@@ -235,17 +299,17 @@ function normalizeResetValue(rawValue) {
     const date = new Date(
       Date.now() + Number(hourMinuteAfter[1]) * 3600000 + Number(hourMinuteAfter[2]) * 60000
     );
-    return formatResetDateTime(date);
+    return formatResetDateTime(date, metric);
   }
   const hourAfter = value.match(/(\d+)\s*時間後/) ?? value.match(/(\d+)\s*hours?(?:\s*later)?$/i);
   if (hourAfter) {
     const date = new Date(Date.now() + Number(hourAfter[1]) * 3600000);
-    return formatResetDateTime(date);
+    return formatResetDateTime(date, metric);
   }
   const minuteAfter = value.match(/(\d+)\s*分後/) ?? value.match(/(\d+)\s*minutes?(?:\s*later)?$/i);
   if (minuteAfter) {
     const date = new Date(Date.now() + Number(minuteAfter[1]) * 60000);
-    return formatResetDateTime(date);
+    return formatResetDateTime(date, metric);
   }
 
   const dayOnlyJa = value.match(/^(\d{1,2})日$/);
@@ -254,14 +318,14 @@ function normalizeResetValue(rawValue) {
     const now = new Date();
     let candidate = new Date(now.getFullYear(), now.getMonth(), dayNum, 0, 0, 0, 0);
     if (candidate < now) candidate = new Date(now.getFullYear(), now.getMonth() + 1, dayNum, 0, 0, 0, 0);
-    return formatResetDateTime(candidate);
+    return formatResetDateTime(candidate, metric);
   }
 
   const daysAfter = value.match(/^(\d+)\s*日後/) ?? value.match(/^(\d+)\s*days?(?:\s*later)?$/i);
   if (daysAfter) {
     const date = new Date(Date.now() + Number(daysAfter[1]) * 86400000);
     date.setHours(0, 0, 0, 0);
-    return formatResetDateTime(date);
+    return formatResetDateTime(date, metric);
   }
 
   const timeOnly = value.match(/^(\d{1,2}):(\d{2})$/);
@@ -276,12 +340,20 @@ function normalizeResetValue(rawValue) {
       0,
       0
     );
-    return formatResetDateTime(date);
+    return formatResetDateTime(date, metric);
+  }
+
+  const timeWithWeekday = value.match(/^(\d{1,2}):(\d{2})\s*\(([^)]+)\)$/);
+  if (timeWithWeekday) {
+    const date = nextDateForWeekday(timeWithWeekday[1], timeWithWeekday[2], timeWithWeekday[3]);
+    if (date) return formatResetDateTime(date, metric);
   }
 
   const already = value.match(/^(\d{2})\/(\d{2})\s+(\d{1,2}):(\d{2})$/);
   if (already) {
-    return `${already[1]}/${already[2]} ${String(Number(already[3])).padStart(2, "0")}:${already[4]}`;
+    const now = new Date();
+    const date = new Date(now.getFullYear(), Number(already[1]) - 1, Number(already[2]), Number(already[3]), Number(already[4]), 0, 0);
+    return formatResetDateTime(date, metric);
   }
 
   return value;
@@ -323,7 +395,7 @@ function metricRow(metric) {
       : null;
   const rightText = percentage === null ? metric.detail || "-" : `${percentage}%`;
   const resetMeta = metric.resetAt
-    ? `${t("popup_resetPrefix")} ${normalizeResetValue(metric.resetAt)}`
+    ? `${t("popup_resetPrefix")} ${normalizeResetValue(metric.resetAt, metric)}`
     : "";
   const rawDetail = metric.resetAt ? "" : metric.detail || "";
   const detail = percentage === null && String(rawDetail) === String(rightText) ? "" : rawDetail;
@@ -529,4 +601,3 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 });
 
 void boot();
-
