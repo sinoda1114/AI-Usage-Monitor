@@ -221,6 +221,9 @@
   "metric_claude_weekly": {
     "message": "每周限额"
   },
+  "metric_claude_sonnet": {
+    "message": "仅 Sonnet"
+  },
   "metric_claude_design": {
     "message": "Claude Design"
   },

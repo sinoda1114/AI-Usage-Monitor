@@ -62,6 +62,7 @@ const cases = [
     text:
       "使用量 現在のセッション 42% 使用済み 3時間 15分後にリセット " +
       "週間制限 すべてのモデル 18% 使用済み 11月8日 にリセット " +
+      "Claude Sonnet 4 使用制限について詳しく見る 1:00 (日)にリセット 18% 使用済み " +
       "追加使用量 5% 使用 今月",
   },
   {
@@ -89,12 +90,15 @@ const expectations = {
   "日本語 UI（現在のセッション + 週間制限 + 追加使用量）": (metrics) => {
     const current = metrics.find((m) => m.id === "claude-current-session");
     const weekly = metrics.find((m) => m.id === "claude-weekly");
+    const sonnet = metrics.find((m) => m.id === "claude-sonnet");
     const extra = metrics.find((m) => m.id === "claude-extra");
     const problems = [];
     if (current?.usedPercentage !== 42) problems.push("current% != 42");
     if (current?.resetAt !== "3時間 15分後にリセット") problems.push(`current reset bad: ${current?.resetAt}`);
     if (weekly?.usedPercentage !== 18) problems.push("weekly% != 18");
     if (weekly?.resetAt !== "11月8日 にリセット") problems.push(`weekly reset bad: ${weekly?.resetAt}`);
+    if (sonnet?.usedPercentage !== 18) problems.push("sonnet% != 18");
+    if (sonnet?.resetAt !== "1:00 (日)にリセット") problems.push(`sonnet reset bad: ${sonnet?.resetAt}`);
     if (extra?.resetAt) problems.push(`extra should have no reset, got: ${extra.resetAt}`);
     return problems;
   },

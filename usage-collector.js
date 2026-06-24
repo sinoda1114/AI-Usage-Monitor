@@ -1,5 +1,5 @@
 /** Collects usage metrics only; no on-page UI (does not load i18n.js). */
-const CONTENT_BUILD = "0.5.5";
+const CONTENT_BUILD = "0.5.11";
 
 let collectorAlive = true;
 let observer = null;
@@ -181,6 +181,7 @@ function metricId(provider, label) {
   if (provider === "codex" && /週あたり|週間|weekly/i.test(label)) return "codex-weekly";
   if (provider === "claude" && /現在のセッション|current session/i.test(label)) return "claude-current-session";
   if (provider === "claude" && /週間制限|weekly|すべてのモデル/i.test(label)) return "claude-weekly";
+  if (provider === "claude" && /(?:Claude\s*)?Sonnet(?:\s+[^%\s]+){0,4}|ソネット(?:\s+[^%\s]+){0,4}/i.test(label)) return "claude-sonnet";
   if (provider === "claude" && /ルーティン|routine/i.test(label)) return "claude-routines";
   if (provider === "claude" && /追加使用量|extra/i.test(label)) return "claude-extra";
   if (provider === "claude" && /claude\s*design/i.test(label)) return "claude-design";
@@ -302,6 +303,13 @@ function metricsFromBars(provider) {
     const weekly = parseClaudeSection(text, [/週間制限/, /すべてのモデル/, /weekly/i]);
     if (weekly) pushMetric(metrics, provider, "週間制限", weekly.usedPercentage, weekly.resetAt ?? null);
 
+    const sonnetPatterns = [
+      /(?:Claude\s*)?Sonnet(?:\s+[^%\s]+){0,4}/i,
+      /ソネット(?:\s+[^%\s]+){0,4}/i,
+    ];
+    const sonnet = parseClaudeSection(text, sonnetPatterns, 800) ?? parseClaudeElementSection(sonnetPatterns);
+    if (sonnet) pushMetric(metrics, provider, "Sonnetのみ", sonnet.usedPercentage, sonnet.resetAt ?? null);
+
     const claudeDesign = parseClaudeSection(text, [/Claude\s*Design/i]);
     if (claudeDesign) pushMetric(metrics, provider, "Claude Design", claudeDesign.usedPercentage, claudeDesign.resetAt ?? null);
 
@@ -407,7 +415,37 @@ function metricsFromBars(provider) {
  * percentage, so prefer text before the percentage to avoid bleeding from the
  * next sibling section.
  */
-function parseClaudeSection(text, patterns) {
+
+function parseClaudeMetricSlice(slice) {
+  const pct = slice.match(/(\d{1,3})\s*%\s*(?:使用済み|used|使用)/i);
+  if (!pct) return null;
+
+  const before = slice.slice(0, pct.index);
+  const after = slice.slice(pct.index + pct[0].length).split(/\d{1,3}\s*%/)[0];
+  return { usedPercentage: Number(pct[1]), resetAt: resetFromSection(before) ?? resetFromSection(after) };
+}
+
+function parseClaudeElementSection(patterns) {
+  const candidates = [...document.querySelectorAll("body *")]
+    .map((node) => node.innerText?.replace(/\s+/g, " ").trim())
+    .filter((value) => Boolean(value) && value.length <= 1200)
+    .filter((value) => patterns.some((pattern) => pattern.test(value)))
+    .sort((a, b) => a.length - b.length);
+
+  for (const value of candidates) {
+    let idx = -1;
+    for (const pattern of patterns) {
+      const found = value.search(pattern);
+      if (found >= 0 && (idx < 0 || found < idx)) idx = found;
+    }
+    if (idx < 0) continue;
+    const parsed = parseClaudeMetricSlice(value.slice(idx));
+    if (parsed) return parsed;
+  }
+  return null;
+}
+
+function parseClaudeSection(text, patterns, maxLen = 260) {
   let idx = -1;
   for (const pattern of patterns) {
     const found = text.search(pattern);
@@ -415,13 +453,8 @@ function parseClaudeSection(text, patterns) {
   }
   if (idx < 0) return null;
 
-  const slice = text.slice(idx, idx + 260);
-  const pct = slice.match(/(\d{1,3})\s*%\s*(?:使用済み|used|使用)/i);
-  if (!pct) return null;
-
-  const before = slice.slice(0, pct.index);
-  const after = slice.slice(pct.index + pct[0].length).split(/\d{1,3}\s*%/)[0];
-  return { usedPercentage: Number(pct[1]), resetAt: resetFromSection(before) ?? resetFromSection(after) };
+  const slice = text.slice(idx, idx + maxLen);
+  return parseClaudeMetricSlice(slice);
 }
 
 function resetFromSection(section) {

@@ -31,6 +31,11 @@ const METRIC_LABEL_TO_KEY = {
   "現在のセッション": "metric_claude_current_session",
   "週間制限": "metric_claude_weekly",
   "Claude Design": "metric_claude_design",
+  "Sonnetのみ": "metric_claude_sonnet",
+  "Sonnet のみ": "metric_claude_sonnet",
+  "ソネットのみ": "metric_claude_sonnet",
+  "ソネット のみ": "metric_claude_sonnet",
+  "Sonnet only": "metric_claude_sonnet",
   "1日の含まれるルーティン実行数": "metric_claude_routines",
   "追加使用量": "metric_claude_extra",
   "5-hour usage limit": "metric_codex_five_hour",
@@ -126,7 +131,7 @@ function resetDisplayMode(metric) {
   const id = String(metric?.id || "");
   if (id.startsWith("cursor-")) return "date";
   if (["codex-five-hour", "claude-current-session", "devin-daily-quota"].includes(id)) return "time";
-  if (["codex-weekly", "claude-weekly", "devin-weekly-quota"].includes(id)) return "date";
+  if (["codex-weekly", "claude-weekly", "claude-sonnet", "devin-weekly-quota"].includes(id)) return "date";
   return "datetime";
 }
 

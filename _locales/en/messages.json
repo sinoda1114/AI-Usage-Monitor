@@ -221,6 +221,9 @@
   "metric_claude_weekly": {
     "message": "Weekly limit"
   },
+  "metric_claude_sonnet": {
+    "message": "Sonnet only"
+  },
   "metric_claude_design": {
     "message": "Claude Design"
   },
