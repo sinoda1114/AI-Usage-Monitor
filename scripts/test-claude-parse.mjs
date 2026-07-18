@@ -73,6 +73,14 @@ const cases = [
       "週間制限 使用制限について詳しく見る すべてのモデル 0:59 (日)にリセット 71% 使用済み",
   },
   {
+    name: "日本語 UI（週間制限の案内文 + Fable）",
+    text:
+      "プラン使用制限 Max (5x) 現在のセッション 2時間17分後にリセット 31% 使用済み " +
+      "週間制限 制限が一時的に引き上げられています。Claude Codeの週間制限が50%高くなっています。 " +
+      "すべてのモデル 1時間17分後にリセット 23% 使用済み " +
+      "Fable 1時間17分後にリセット 11% 使用済み",
+  },
+  {
     name: "英語 UI（current session + weekly + extra usage）",
     text:
       "Usage current session 67% used Resets in 2 hours later " +
@@ -110,6 +118,19 @@ const expectations = {
     if (current?.resetAt !== "2時間29分後にリセット") problems.push(`current reset bad: ${current?.resetAt}`);
     if (weekly?.usedPercentage !== 71) problems.push("weekly% != 71");
     if (weekly?.resetAt !== "0:59 (日)にリセット") problems.push(`weekly reset bad: ${weekly?.resetAt}`);
+    return problems;
+  },
+  "日本語 UI（週間制限の案内文 + Fable）": (metrics) => {
+    const current = metrics.find((m) => m.id === "claude-current-session");
+    const weekly = metrics.find((m) => m.id === "claude-weekly");
+    const fable = metrics.find((m) => m.id === "claude-fable");
+    const problems = [];
+    if (current?.usedPercentage !== 31) problems.push("current% != 31");
+    if (current?.resetAt !== "2時間17分後にリセット") problems.push(`current reset bad: ${current?.resetAt}`);
+    if (weekly?.usedPercentage !== 23) problems.push("weekly% != 23");
+    if (weekly?.resetAt !== "1時間17分後にリセット") problems.push(`weekly reset bad: ${weekly?.resetAt}`);
+    if (fable?.usedPercentage !== 11) problems.push("fable% != 11");
+    if (fable?.resetAt !== "1時間17分後にリセット") problems.push(`fable reset bad: ${fable?.resetAt}`);
     return problems;
   },
   "英語 UI（current session + weekly + extra usage）": (metrics) => {

@@ -1,5 +1,5 @@
 /** Collects usage metrics only; no on-page UI (does not load i18n.js). */
-const CONTENT_BUILD = "0.5.11";
+const CONTENT_BUILD = "0.5.12";
 
 let collectorAlive = true;
 let observer = null;
@@ -300,15 +300,18 @@ function metricsFromBars(provider) {
     const current = parseClaudeSection(text, [/現在のセッション/, /current session/i]);
     if (current) pushMetric(metrics, provider, "現在のセッション", current.usedPercentage, current.resetAt ?? null);
 
-    const weekly = parseClaudeSection(text, [/週間制限/, /すべてのモデル/, /weekly/i]);
+    // Claude now places a promotion notice between the weekly heading and the
+    // actual "all models" meter. Keep the section wide enough to reach that
+    // meter; parseClaudeMetricSlice only accepts usage percentages, so notice
+    // percentages such as "50% higher" are ignored.
+    const weekly = parseClaudeSection(text, [/週間制限/, /すべてのモデル/, /all models/i], 900);
     if (weekly) pushMetric(metrics, provider, "週間制限", weekly.usedPercentage, weekly.resetAt ?? null);
 
-    const sonnetPatterns = [
-      /(?:Claude\s*)?Sonnet(?:\s+[^%\s]+){0,4}/i,
-      /ソネット(?:\s+[^%\s]+){0,4}/i,
-    ];
-    const sonnet = parseClaudeSection(text, sonnetPatterns, 800) ?? parseClaudeElementSection(sonnetPatterns);
-    if (sonnet) pushMetric(metrics, provider, "Sonnetのみ", sonnet.usedPercentage, sonnet.resetAt ?? null);
+    const model = parseClaudeNamedModelSection(text) ?? parseClaudeNamedModelElementSection();
+    if (model) {
+      const label = model.name === "Sonnet" ? "Sonnetのみ" : model.name;
+      pushMetric(metrics, provider, label, model.usedPercentage, model.resetAt ?? null);
+    }
 
     const claudeDesign = parseClaudeSection(text, [/Claude\s*Design/i]);
     if (claudeDesign) pushMetric(metrics, provider, "Claude Design", claudeDesign.usedPercentage, claudeDesign.resetAt ?? null);
@@ -441,6 +444,47 @@ function parseClaudeElementSection(patterns) {
     if (idx < 0) continue;
     const parsed = parseClaudeMetricSlice(value.slice(idx));
     if (parsed) return parsed;
+  }
+  return null;
+}
+
+const CLAUDE_MODEL_PATTERNS = [
+  { name: "Fable", pattern: /\bFable\b/i },
+  { name: "Sonnet", pattern: /(?:Claude\s*)?Sonnet(?:\s+\d+(?:\.\d+)?)?/i },
+  { name: "Opus", pattern: /(?:Claude\s*)?Opus(?:\s+\d+(?:\.\d+)?)?/i },
+  { name: "Haiku", pattern: /(?:Claude\s*)?Haiku(?:\s+\d+(?:\.\d+)?)?/i },
+  { name: "ソネット", pattern: /ソネット/i },
+];
+
+function parseClaudeNamedModelSlice(value, model, startAt = 0) {
+  const idx = value.search(model.pattern);
+  if (idx < startAt) return null;
+  const parsed = parseClaudeMetricSlice(value.slice(idx, idx + 500));
+  if (!parsed) return null;
+  return { name: model.name === "ソネット" ? "Sonnet" : model.name, ...parsed };
+}
+
+function parseClaudeNamedModelSection(text) {
+  const weeklyIdx = text.search(/週間制限|すべてのモデル|weekly|all models/i);
+  const startAt = weeklyIdx >= 0 ? weeklyIdx : 0;
+  const candidates = [];
+  for (const model of CLAUDE_MODEL_PATTERNS) {
+    const parsed = parseClaudeNamedModelSlice(text, model, startAt);
+    if (parsed) candidates.push({ index: text.search(model.pattern), parsed });
+  }
+  candidates.sort((a, b) => a.index - b.index);
+  return candidates[0]?.parsed ?? null;
+}
+
+function parseClaudeNamedModelElementSection() {
+  const candidates = [...document.querySelectorAll("body *")]
+    .map((node) => node.innerText?.replace(/\s+/g, " ").trim())
+    .filter((value) => Boolean(value) && value.length <= 1200);
+  for (const value of candidates.sort((a, b) => a.length - b.length)) {
+    for (const model of CLAUDE_MODEL_PATTERNS) {
+      const parsed = parseClaudeNamedModelSlice(value, model);
+      if (parsed) return parsed;
+    }
   }
   return null;
 }

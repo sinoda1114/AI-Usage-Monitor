@@ -132,6 +132,7 @@ function resetDisplayMode(metric) {
   if (id.startsWith("cursor-")) return "date";
   if (["codex-five-hour", "claude-current-session", "devin-daily-quota"].includes(id)) return "time";
   if (["codex-weekly", "claude-weekly", "claude-sonnet", "devin-weekly-quota"].includes(id)) return "date";
+  if (/^claude-(?:fable|opus|haiku)/i.test(id)) return "date";
   return "datetime";
 }
 
