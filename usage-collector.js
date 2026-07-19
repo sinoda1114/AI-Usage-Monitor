@@ -1,5 +1,5 @@
 /** Collects usage metrics only; no on-page UI (does not load i18n.js). */
-const CONTENT_BUILD = "0.5.12";
+const CONTENT_BUILD = "0.5.13";
 
 let collectorAlive = true;
 let observer = null;
@@ -223,6 +223,14 @@ function metricsFromBars(provider) {
     const cursorReset = findCursorReset(text);
     const total = text.match(/(?:Included in Pro\s+)?Total\s+(\d{1,3})\s*%/i);
     if (total) pushMetric(metrics, provider, "Total", Number(total[1]), cursorReset);
+
+    const firstParty =
+      text.match(/First[-\s]Party\s+Models\s+(\d{1,3})\s*%/i) ??
+      text.match(/(\d{1,3})\s*%\s*First[-\s]Party\s+Models/i);
+    if (firstParty) {
+      const value = firstParty[1];
+      pushMetric(metrics, provider, "First-Party Models", Number(value), cursorReset);
+    }
 
     const auto =
       text.match(/Auto\s*\+\s*Composer\s+(\d{1,3})\s*%/i) ??
