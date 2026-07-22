@@ -34,7 +34,7 @@ Chrome extension that shows Cursor, Codex, Claude, and optional Devin usage in o
 ## Detailed description
 
 ```text
-AI Usage Monitor は、Cursor・Codex・Claude の使用量ページに表示される利用状況を読み取り、Chrome のツールバー上のポップアップにまとめて表示する拡張機能です。オプションで Devin（組織スラッグを設定した場合）にも対応します。
+AI Usage Monitor は、Cursor・Codex・Claude の使用量ページ（可能な場合は同一オリジンの使用量 JSON）から利用状況を読み取り、Chrome のツールバー上のポップアップにまとめて表示する拡張機能です。オプションで Devin（組織スラッグを設定した場合）にも対応します。
 
 各サービスの使用量、リセット予定、残りクレジットなどをひとつの画面で確認できます。ポップアップと設定の表示言語は English / 日本語 / 简体中文 / 한국어 / Español から選べます。
 
@@ -89,7 +89,7 @@ Optional Devin support:
 Devin is off by default. In Options, enable Devin, enter your organization slug (the name after /org/ in your Devin usage URL, for example: https://app.devin.ai/org/my-org/settings/usage), and save.
 
 How it works:
-After installation, the extension opens or reloads the official usage pages for each enabled service and reads the numbers displayed on those pages. Tabs are not closed after collection. The extension does not inject ads or on-page overlays.
+After installation, the extension opens or reloads the official usage pages for each enabled service and reads usage information from those pages. For Claude, it prefers the same-origin usage JSON response the settings page already loads when available, and falls back to on-page text. Tabs are not closed after collection. The extension does not inject ads or on-page overlays.
 
 Data handling:
 Usage information is stored only in this browser. Nothing is sent to external servers, shared with third parties, or used for ads or analytics.
@@ -127,7 +127,7 @@ Chrome Web Store 本体に専用のサポートチャットはなく、**開発�
 ### ホスト権限が必要な理由（Privacy タブ用・英語）
 
 ```text
-Host permissions are required because this extension only reads usage metrics already shown on each supported service’s official usage page and displays them in the toolbar popup.
+Host permissions are required because this extension only reads usage metrics from each supported service’s official usage page (including same-origin usage JSON responses those pages already load in your session) and displays them in the toolbar popup.
 
 We use these hosts only for:
 • https://cursor.com/* — open or reload the Cursor usage (spending) page and run the usage collector on that page
@@ -141,7 +141,7 @@ Host access is used to find existing tabs, open or reload the correct usage tabs
 ### scripting 権限（Privacy タブ用・英語）
 
 ```text
-The scripting permission is used only to register a content script on the supported official usage-page URLs listed above (Cursor, Codex, Claude, and Devin when enabled). The script reads usage metrics already displayed on those pages and saves them locally in Chrome for the extension popup. It does not run on other websites, does not inject on-page UI, and does not send data to external servers.
+The scripting permission is used only to register a content script on the supported official usage-page URLs listed above (Cursor, Codex, Claude, and Devin when enabled). The script reads usage metrics from those pages—preferring same-origin usage JSON when available (Claude)—and saves them locally in Chrome for the extension popup. It does not run on other websites, does not inject on-page UI, and does not send data to external servers.
 ```
 
 ## Store listing の目安
@@ -173,7 +173,7 @@ python scripts/package-store-zip.py
 
 `releases/ai-usage-monitor-store-v<version>.zip` が出力されます（`<version>` は `manifest.json` と同じ）。
 
-**リポジトリ同梱の申請用 ZIP（例）:** `releases/ai-usage-monitor-store-v0.5.4.zip`
+**リポジトリ同梱の申請用 ZIP（例）:** `releases/ai-usage-monitor-store-v0.5.15.zip`
 
 ### PowerShell（手動で ZIP するとき）
 

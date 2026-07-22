@@ -45,6 +45,10 @@ function runCollectorWithText(pageText) {
     String,
     WeakSet,
     Date,
+    MutationObserver: class {
+      observe() {}
+      disconnect() {}
+    },
     document: documentStub,
     window: windowStub,
     chrome: chromeStub,

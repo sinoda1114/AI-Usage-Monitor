@@ -1,5 +1,5 @@
 /** Collects usage metrics only; no on-page UI (does not load i18n.js). */
-const CONTENT_BUILD = "0.5.13";
+const CONTENT_BUILD = "0.5.15";
 
 let collectorAlive = true;
 let observer = null;
@@ -584,6 +584,147 @@ async function syncCollectorForPage() {
   return true;
 }
 
+/** Normalize Claude utilization floats that may be 0–1 or 0–100. */
+function normalizeClaudeUtilization(value) {
+  if (value == null || value === "") return null;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) return null;
+  // Prefer 0–100 percent scale (API often returns 1 for 1%).
+  // Only treat strict fractions (0, 1) as 0–1.
+  if (n > 0 && n < 1) return Math.round(n * 100);
+  return Math.max(0, Math.min(100, Math.round(n)));
+}
+
+function formatClaudeResetAt(iso) {
+  if (!iso) return undefined;
+  const t = Date.parse(iso);
+  if (!Number.isFinite(t)) return String(iso);
+  const ms = t - Date.now();
+  if (ms <= 0) {
+    try {
+      return new Date(t).toLocaleString(undefined, {
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      });
+    } catch {
+      return String(iso);
+    }
+  }
+  const minutes = Math.round(ms / 60000);
+  if (minutes < 60) return `${minutes} minutes later`;
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  if (hours < 48) {
+    return mins > 0 ? `${hours} hours ${mins} minutes later` : `${hours} hours later`;
+  }
+  try {
+    return new Date(t).toLocaleString(undefined, {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  } catch {
+    return String(iso);
+  }
+}
+
+function pushClaudeWindowMetric(metrics, label, window) {
+  if (!window || typeof window !== "object") return;
+  const usedPercentage = normalizeClaudeUtilization(window.utilization);
+  if (usedPercentage == null) return;
+  pushMetric(metrics, "claude", label, usedPercentage, formatClaudeResetAt(window.resets_at) ?? null);
+}
+
+/** Map Claude settings/usage JSON → existing popup metric ids. */
+function mapClaudeUsageJson(data) {
+  const metrics = [];
+  if (!data || typeof data !== "object") return metrics;
+
+  pushClaudeWindowMetric(metrics, "現在のセッション", data.five_hour);
+  pushClaudeWindowMetric(metrics, "週間制限", data.seven_day);
+  pushClaudeWindowMetric(metrics, "Sonnetのみ", data.seven_day_sonnet);
+  pushClaudeWindowMetric(metrics, "Opus", data.seven_day_opus);
+  pushClaudeWindowMetric(metrics, "Fable", data.seven_day_fable ?? data.seven_day_omelette);
+  pushClaudeWindowMetric(metrics, "Cowork", data.seven_day_cowork);
+  pushClaudeWindowMetric(metrics, "OAuth apps", data.seven_day_oauth_apps);
+
+  const extra = data.extra_usage;
+  if (extra && typeof extra === "object") {
+    const usedPercentage = normalizeClaudeUtilization(extra.utilization);
+    if (usedPercentage != null && extra.is_enabled !== false) {
+      const detail =
+        extra.used_credits != null && extra.monthly_limit != null
+          ? `$${extra.used_credits} / $${extra.monthly_limit}`
+          : undefined;
+      pushMetric(metrics, "claude", "追加使用量", usedPercentage, formatClaudeResetAt(extra.resets_at) ?? null, detail);
+    }
+  }
+
+  return metrics;
+}
+
+function pickClaudeOrgId(payload) {
+  const list = Array.isArray(payload)
+    ? payload
+    : payload?.organizations ?? payload?.data ?? payload?.orgs ?? [];
+  if (!Array.isArray(list) || list.length === 0) {
+    if (payload && typeof payload === "object") {
+      return payload.uuid ?? payload.id ?? payload.organization_uuid ?? null;
+    }
+    return null;
+  }
+  const preferred =
+    list.find((org) => org?.uuid || org?.id || org?.organization_uuid) ?? list[0];
+  return preferred?.uuid ?? preferred?.id ?? preferred?.organization_uuid ?? null;
+}
+
+async function fetchClaudeJson(url) {
+  const response = await fetch(url, {
+    method: "GET",
+    credentials: "include",
+    headers: {
+      Accept: "application/json",
+      Referer: "https://claude.ai/settings/usage",
+    },
+  });
+  if (!response.ok) {
+    throw new Error(`Claude API ${response.status} for ${url}`);
+  }
+  return response.json();
+}
+
+async function fetchClaudeMetricsFromApi() {
+  const orgs = await fetchClaudeJson("https://claude.ai/api/organizations");
+  const orgId = pickClaudeOrgId(orgs);
+  if (!orgId) return [];
+  const usage = await fetchClaudeJson(
+    `https://claude.ai/api/organizations/${encodeURIComponent(orgId)}/usage`
+  );
+  return mapClaudeUsageJson(usage);
+}
+
+async function collectClaudeMetrics() {
+  try {
+    const apiMetrics = await fetchClaudeMetricsFromApi();
+    if (apiMetrics.length > 0) {
+      const domMetrics = metricsFromBars("claude");
+      for (const metric of domMetrics) {
+        // Supplement fields the usage JSON often omits (routines, design, named models).
+        if (!apiMetrics.some((entry) => entry.id === metric.id)) {
+          apiMetrics.push(metric);
+        }
+      }
+      return { metrics: apiMetrics, source: "claude-api" };
+    }
+  } catch (error) {
+    console.warn("[AI Usage Monitor] Claude API collect failed; falling back to DOM", error);
+  }
+  return { metrics: metricsFromBars("claude"), source: "web-collector" };
+}
+
 async function sendSnapshot() {
   if (!collectorAlive) return;
   if (!isExtensionContextAlive()) {
@@ -597,11 +738,15 @@ async function sendSnapshot() {
   }
   attachObserver();
 
-  const metrics = metricsFromBars(provider);
+  const collected =
+    provider === "claude"
+      ? await collectClaudeMetrics()
+      : { metrics: metricsFromBars(provider), source: "web-collector" };
+  const metrics = collected.metrics;
   const snapshot = {
     provider,
     name: providerName(provider),
-    source: "web-collector",
+    source: collected.source,
     url: window.location.href,
     title: document.title,
     collectedAt: new Date().toISOString(),
@@ -609,7 +754,7 @@ async function sendSnapshot() {
     status: metrics.length > 0 ? "ok" : "no-metrics",
     diagnostic:
       metrics.length > 0
-        ? `${metrics.length} metric(s) extracted from ${document.title}`
+        ? `${metrics.length} metric(s) via ${collected.source} from ${document.title}`
         : `Collector ran on ${document.title}, but no metric matched`,
   };
 

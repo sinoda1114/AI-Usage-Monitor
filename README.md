@@ -21,9 +21,9 @@ Cursor・Codex・Claude の公式サイトにある**使用量のページ**に�
 
 まず配布用 ZIP を入手します。
 
-- **Chrome Web Store 申請用 ZIP（`manifest.json` の `version` と一致するファイル名）:** リポジトリの `releases/ai-usage-monitor-store-v0.5.4.zip` を使うか、ルートで `python scripts/package-store-zip.py` を実行して同じものを生成してください（`usage-collector.js`・`i18n.js`・`_locales`・アイコン等を含む申請用の一式です）。
+- **Chrome Web Store 申請用 ZIP（`manifest.json` の `version` と一致するファイル名）:** リポジトリの `releases/ai-usage-monitor-store-v0.5.15.zip` を使うか、ルートで `python scripts/package-store-zip.py` を実行して同じものを生成してください（`usage-collector.js`・`i18n.js`・`_locales`・アイコン等を含む申請用の一式です）。
 - **手早く直リンクする場合（`main` に ZIP が含まれているとき）:**  
-  `https://github.com/sinoda1114/AI-Usage-Monitor/raw/main/releases/ai-usage-monitor-store-v0.5.4.zip`
+  `https://github.com/sinoda1114/AI-Usage-Monitor/raw/main/releases/ai-usage-monitor-store-v0.5.15.zip`
 - **別バージョンや Release 資産を探す場合:** [GitHub の Releases 一覧](https://github.com/sinoda1114/AI-Usage-Monitor/releases)
 
 1. 上のリンクから **ZIP をダウンロードして展開する**（中に `manifest.json` などが並んだフォルダができます）。

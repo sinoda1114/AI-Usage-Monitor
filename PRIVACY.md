@@ -4,18 +4,18 @@ AI Usage Monitor is a Chrome extension that displays usage information from Curs
 
 ## Information handled by this extension
 
-This extension reads usage metrics displayed on the following service pages:
+This extension reads usage metrics from the supported services' official usage surfaces. Where available, it prefers the same-origin usage JSON responses those pages already load in your logged-in session; otherwise it reads metrics displayed on the page.
 
 - Cursor usage / spending pages
 - ChatGPT Codex usage analytics page
-- Claude usage settings page
+- Claude usage settings page (and the same-origin `/api/organizations/.../usage` response when available)
 - Devin organization usage settings page (`app.devin.ai/org/{slug}/settings/usage`), when configured in extension settings
 
 The extension may process the following information locally:
 
-- Usage metrics displayed on those pages
-- Reset times shown on those pages
-- Remaining credit or usage limit information shown on those pages
+- Usage metrics from those pages or same-origin usage responses
+- Reset times
+- Remaining credit or usage limit information
 - Page URL and page title, for diagnostic and display purposes
 
 ## Local storage
@@ -60,16 +60,16 @@ AI Usage Monitor は、Cursor・Codex・Claude の使用量情報を Chrome の�
 
 ## この拡張が扱う情報
 
-この拡張は、以下のサービスの使用量ページに表示される情報を読み取ります。
+この拡張は、対応サービスの公式使用量画面から情報を読み取ります。可能な場合は、ログイン済みセッションでそれらのページが既に取得している同一オリジンの使用量 JSON を優先し、取れない場合はページ上の表示を読み取ります。
 
 - Cursor の使用量 / spending ページ
 - ChatGPT Codex の usage analytics ページ
-- Claude の usage settings ページ
+- Claude の usage settings ページ（取得できる場合は同一オリジンの `/api/organizations/.../usage` レスポンス）
 - Devin の組織ごとの使用量ページ（`app.devin.ai/org/{スラッグ}/settings/usage`。拡張の設定で組織スラッグを指定した場合）
 
 この拡張は、以下の情報をブラウザ内で処理する場合があります。
 
-- 使用量メトリクス
+- 使用量メトリクス（ページ表示または同一オリジンの使用量レスポンス）
 - リセット時刻
 - 残りクレジットや使用制限に関する情報
 - 診断・表示目的のページ URL とページタイトル
