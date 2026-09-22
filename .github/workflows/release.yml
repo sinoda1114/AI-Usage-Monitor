@@ -30,7 +30,7 @@ jobs:
             "dist/ai-usage-monitor-v${{ steps.version.outputs.value }}.zip"
 
       - name: Create GitHub release and upload asset
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: dist/ai-usage-monitor-v${{ steps.version.outputs.value }}.zip
           generate_release_notes: true
